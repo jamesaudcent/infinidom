@@ -1,0 +1,28 @@
+# infinidom Framework
+# 
+# Quick start:
+#   1. Create a sites/ folder with your content (see sites/example/)
+#   2. Set your API key: export AI_API_KEY=sk-...
+#   3. Run: docker compose up
+#
+# Your site will be available at http://localhost:8000
+
+services:
+  infinidom:
+    build: .
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      - ./sites:/app/sites:ro
+    environment:
+      # AI Provider: "openai" or "cerebras"
+      - AI_PROVIDER=${AI_PROVIDER:-openai}
+
+      # AI Configuration
+      - AI_API_KEY=${AI_API_KEY}
+      - AI_MODEL=${AI_MODEL:-gpt-4o-mini}
+      - AI_MAX_TOKENS=${AI_MAX_TOKENS:-16384}
+
+      # Content mode: "expansive" or "restrictive"
+      - CONTENT_MODE=${CONTENT_MODE:-expansive}
+    restart: unless-stopped

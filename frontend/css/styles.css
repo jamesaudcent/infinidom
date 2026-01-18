@@ -1,0 +1,113 @@
+/**
+ * infinidom Framework - Minimal Overrides for Pico CSS
+ * 
+ * Pico CSS Classless handles all styling automatically via semantic HTML.
+ * This file only contains infinidom-specific functionality styles.
+ */
+
+/* App container - responsive width matching Pico's container sizing */
+/* Target both #app and body > div to catch AI-generated wrappers */
+#app:not(.infinidom-loading),
+body > div:not(.infinidom-loading) {
+    width: 100%;
+    margin-right: auto;
+    margin-left: auto;
+    padding: var(--pico-block-spacing-vertical) var(--pico-block-spacing-horizontal);
+}
+
+@media (min-width: 576px) {
+    #app:not(.infinidom-loading),
+    body > div:not(.infinidom-loading) {
+        max-width: 510px;
+        padding-right: 0;
+        padding-left: 0;
+    }
+}
+
+@media (min-width: 768px) {
+    #app:not(.infinidom-loading),
+    body > div:not(.infinidom-loading) {
+        max-width: 700px;
+    }
+}
+
+@media (min-width: 1024px) {
+    #app:not(.infinidom-loading),
+    body > div:not(.infinidom-loading) {
+        max-width: 950px;
+    }
+}
+
+@media (min-width: 1280px) {
+    #app:not(.infinidom-loading),
+    body > div:not(.infinidom-loading) {
+        max-width: 1200px;
+    }
+}
+
+@media (min-width: 1536px) {
+    #app:not(.infinidom-loading),
+    body > div:not(.infinidom-loading) {
+        max-width: 1450px;
+    }
+}
+
+/* Interactive element marker - used by infinidom for event handling */
+[data-infinidom-interactive="true"] {
+    cursor: pointer;
+}
+
+/* Smooth transitions for dynamic content */
+.infinidom-transition {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.infinidom-fade-in {
+    animation: infinidom-fade-in 0.5s ease forwards;
+}
+
+@keyframes infinidom-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Loading overlay */
+.infinidom-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.infinidom-loading-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.infinidom-loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}

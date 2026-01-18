@@ -1,0 +1,33 @@
+# User-provided content (mounted at runtime)
+sites/
+
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Environment/Secrets (NEVER commit API keys)
+.env
+*.env.local
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Fly.io deployment (optional - see notes below)
+fly.toml
