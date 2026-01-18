@@ -115,6 +115,7 @@ async def stream_interaction(request: Request, interaction: InteractionRequest):
     
     event_data = interaction.event.model_dump()
     event_data["current_url"] = interaction.current_url
+    event_data["current_dom"] = interaction.current_dom
     
     async def generate_stream() -> AsyncGenerator[str, None]:
         try:

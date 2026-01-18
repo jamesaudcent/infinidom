@@ -71,6 +71,15 @@ Theme: {site.theme}""")
             context_parts.append(f"""## Recent User Activity
 {chr(10).join(history_summary)}""")
     
+    # Current DOM content (what's currently rendered on the page)
+    current_dom = event.get("current_dom")
+    if current_dom:
+        context_parts.append(f"""## Current Page Content
+The following HTML is currently rendered on the page:
+```html
+{current_dom}
+```""")
+    
     # Current event
     event_type = event.get("event_type", "unknown")
     path = event.get("path", "/")

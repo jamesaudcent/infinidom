@@ -125,6 +125,7 @@ class InfinidomAPIClient {
                 width: window.innerWidth,
                 height: window.innerHeight,
             },
+            current_dom: document.body.innerHTML,
         };
         
         // For POST requests with SSE, we need to use fetch and handle the stream

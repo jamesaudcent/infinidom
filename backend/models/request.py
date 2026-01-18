@@ -28,6 +28,7 @@ class InteractionRequest(BaseModel):
     event: UserEvent = Field(..., description="The user event that triggered this interaction")
     current_url: Optional[str] = Field(None, description="Current page URL/path")
     viewport: Optional[Dict[str, int]] = Field(None, description="Viewport dimensions")
+    current_dom: Optional[str] = Field(None, description="Current DOM content of the page body")
 
 
 class InitialLoadRequest(BaseModel):
