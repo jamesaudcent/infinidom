@@ -4,14 +4,36 @@ AI-powered dynamic website generator. Provide your content, and AI builds an inf
 
 ## Quick Start
 
-### 1. Clone and configure
+### 1. Create your project folder
 
 ```bash
-git clone https://github.com/yourusername/infinidom.git
-cd infinidom
+mkdir my-site && cd my-site
 ```
 
-### 2. Set your API key
+### 2. Download the compose file
+
+```bash
+curl -O https://raw.githubusercontent.com/jamesaudcent/infinidom/main/docker-compose.yaml
+```
+
+### 3. Create your sites folder
+
+```bash
+mkdir -p sites/mysite/content
+```
+
+Add a `sites/config.yaml`:
+```yaml
+sites:
+  mysite:
+    domains:
+      - localhost
+    name: "My Site"
+```
+
+Add content in `sites/mysite/content/` and a `sites/mysite/prompt.txt` for AI personality.
+
+### 4. Set your API key
 
 ```bash
 export AI_API_KEY=sk-your-key-here
@@ -22,7 +44,7 @@ Or create a `.env` file:
 AI_API_KEY=sk-your-key-here
 ```
 
-### 3. Run with Docker
+### 5. Run with Docker
 
 ```bash
 docker compose up
@@ -52,7 +74,7 @@ sites/
 ### 1. Create your site folder
 
 ```bash
-cp -r sites/example sites/mysite
+mkdir -p sites/mysite/content
 ```
 
 ### 2. Add your content
@@ -142,24 +164,31 @@ sites:
 
 ---
 
-## Running Without Docker
+## Development
 
-### Prerequisites
+For local development with source code:
 
-- Python 3.11+
-- pip
+### Clone the repository
 
-### Setup
+```bash
+git clone https://github.com/jamesaudcent/infinidom.git
+cd infinidom
+```
+
+### Run with local builds
+
+```bash
+docker compose -f docker-compose.dev.yaml up --build
+```
+
+### Running without Docker
+
+Prerequisites: Python 3.11+
 
 ```bash
 python -m venv venv
 source venv/bin/activate  # or `venv\Scripts\activate` on Windows
 pip install -r requirements.txt
-```
-
-### Run
-
-```bash
 python run.py
 ```
 

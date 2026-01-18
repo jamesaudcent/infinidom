@@ -1,15 +1,13 @@
-# infinidom Framework
+# infinidom Framework - Development
 # 
-# Quick start:
-#   1. Create a sites/ folder with your content (see sites/example/)
-#   2. Set your API key: export AI_API_KEY=sk-...
-#   3. Run: docker compose up
+# For local development with live builds:
+#   docker compose -f docker-compose.dev.yaml up --build
 #
 # Your site will be available at http://localhost:8000
 
 services:
   infinidom:
-    image: jamesaudcent/infinidom:latest
+    build: .
     ports:
       - "${PORT:-8000}:8000"
     volumes:
