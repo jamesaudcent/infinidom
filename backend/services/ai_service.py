@@ -73,8 +73,10 @@ Theme: {site.theme}""")
     
     # Current event
     event_type = event.get("event_type", "unknown")
+    path = event.get("path", "/")
     context_parts.append(f"""## Current Event
 Type: {event_type}
+Path: {path}
 Is Initial Load: {is_initial}""")
     
     if event_type == "click":

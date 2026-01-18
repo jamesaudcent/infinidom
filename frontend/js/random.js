@@ -179,6 +179,32 @@ class Infinidom {
             }
             
             if (target) {
+                // Skip external links - let browser handle them normally
+                if (target.tagName === 'A') {
+                    const href = target.getAttribute('href');
+                    // External link conditions:
+                    // - Has target="_blank"
+                    // - Starts with http:// or https:// and different origin
+                    // - Starts with mailto:, tel:, etc.
+                    if (target.getAttribute('target') === '_blank') {
+                        return; // Let browser handle external link
+                    }
+                    if (href && (href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('javascript:'))) {
+                        return; // Let browser handle special protocols
+                    }
+                    if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+                        try {
+                            const url = new URL(href);
+                            if (url.origin !== window.location.origin) {
+                                return; // Let browser handle external link
+                            }
+                        } catch (e) {
+                            // Invalid URL, let browser handle it
+                            return;
+                        }
+                    }
+                }
+                
                 e.preventDefault();
                 e.stopPropagation();
                 this.handleEvent(e, 'click', target);
