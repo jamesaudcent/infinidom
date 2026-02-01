@@ -5,13 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>infinidom</title>
     
-    <!-- Pico CSS Classless - semantic HTML, automatic styling -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.classless.min.css">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
     
-    <!-- Geist font for loading screen title only -->
+    <!-- Inter font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Snabbdom via ES Module from esm.sh -->
     <script type="importmap">
@@ -33,7 +44,14 @@
     <link rel="stylesheet" href="/site-styles.css">
     
     <style>
-        /* Critical loading styles - override Pico for loading screen */
+        /* Base styles */
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        /* Critical loading styles */
         .infinidom-loading {
             display: flex;
             align-items: center;
@@ -80,12 +98,13 @@
         }
         
         .loading-logo h1 {
-            font-family: 'Geist', sans-serif;
+            font-family: 'Inter', system-ui, sans-serif;
             font-size: 2.5rem;
             font-weight: 300;
             margin: 0;
             text-transform: lowercase;
             color: #fff;
+            letter-spacing: -0.02em;
         }
         
         @keyframes shimmer {

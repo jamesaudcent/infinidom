@@ -31,3 +31,6 @@ build/
 
 # Fly.io deployment (optional - see notes below)
 fly.toml
+
+oatmeal-mauve-familjen
+catalyst-ui-kit

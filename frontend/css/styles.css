@@ -1,56 +1,10 @@
 /**
- * infinidom Framework - Minimal Overrides for Pico CSS
+ * infinidom Framework - Base Styles for Tailwind CSS
  * 
- * Pico CSS Classless handles all styling automatically via semantic HTML.
- * This file only contains infinidom-specific functionality styles.
+ * Tailwind handles utility classes, this file contains:
+ * - infinidom-specific functionality styles
+ * - Base typography and layout defaults
  */
-
-/* App container - responsive width matching Pico's container sizing */
-/* Target both #app and body > div to catch AI-generated wrappers */
-#app:not(.infinidom-loading),
-body > div:not(.infinidom-loading) {
-    width: 100%;
-    margin-right: auto;
-    margin-left: auto;
-    padding: var(--pico-block-spacing-vertical) var(--pico-block-spacing-horizontal);
-}
-
-@media (min-width: 576px) {
-    #app:not(.infinidom-loading),
-    body > div:not(.infinidom-loading) {
-        max-width: 510px;
-        padding-right: 0;
-        padding-left: 0;
-    }
-}
-
-@media (min-width: 768px) {
-    #app:not(.infinidom-loading),
-    body > div:not(.infinidom-loading) {
-        max-width: 700px;
-    }
-}
-
-@media (min-width: 1024px) {
-    #app:not(.infinidom-loading),
-    body > div:not(.infinidom-loading) {
-        max-width: 950px;
-    }
-}
-
-@media (min-width: 1280px) {
-    #app:not(.infinidom-loading),
-    body > div:not(.infinidom-loading) {
-        max-width: 1200px;
-    }
-}
-
-@media (min-width: 1536px) {
-    #app:not(.infinidom-loading),
-    body > div:not(.infinidom-loading) {
-        max-width: 1450px;
-    }
-}
 
 /* Interactive element marker - used by infinidom for event handling */
 [data-infinidom-interactive="true"] {
