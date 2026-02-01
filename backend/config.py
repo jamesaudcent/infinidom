@@ -22,8 +22,10 @@ class Settings(BaseSettings):
     content_mode: str = "expansive"
     
     # Session Persistence
-    # If True, session survives browser refresh and returns (via localStorage session_id)
-    # Pages are cached and conversation thread is maintained across visits
+    # If True, returning users (same session_id from localStorage) resume their previous session
+    # with cached pages and conversation history intact
+    # If False, each page load starts a fresh session (useful for testing)
+    # Note: Page caching always works within a session regardless of this setting
     persist_session: bool = True
     
     # Application Configuration

@@ -138,6 +138,7 @@ docker compose restart
 | `AI_MODEL` | `gpt-4o-mini` | Model to use |
 | `AI_MAX_TOKENS` | `16384` | Max tokens for responses |
 | `CONTENT_MODE` | `expansive` | `expansive` or `restrictive` |
+| `PERSIST_SESSION` | `true` | Resume previous session on return (set `false` for testing) |
 | `PORT` | `8000` | Server port |
 
 ### Site Configuration
@@ -161,6 +162,21 @@ sites:
 
 - **expansive**: AI uses your content as inspiration, creating rich explorable pages
 - **restrictive**: AI strictly adheres to your provided content only
+
+### Page Caching
+
+infinidom includes intelligent caching at multiple levels (always enabled within a session):
+
+- **Backend cache**: Pages are cached server-side per session. Revisiting a page returns cached content instantly
+- **Frontend cache**: Pages are cached in-browser for instant back/forward navigation
+- **Conversation persistence**: The AI maintains context across all interactions, so it understands the user's journey even when serving cached pages
+
+Navigation buttons use `data-path` attributes to enable instant cache lookups:
+```json
+{"tag":"button","props":{"attrs":{"data-infinidom-interactive":"true","data-path":"/features"}},"children":["Features"]}
+```
+
+Set `PERSIST_SESSION=false` to start fresh on each visit (useful for testing). When true, returning users resume their previous session with all cached pages intact.
 
 ---
 

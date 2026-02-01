@@ -74,10 +74,13 @@ async def stream_initial_load(
     ai_service = get_ai_service(site)
     settings = get_settings()
     
-    session = session_manager.get_or_create_session(session_id)
+    # If persist_session is disabled, ignore the session_id and create fresh session
+    session = session_manager.get_or_create_session(
+        session_id if settings.persist_session else None
+    )
     
-    # Check if page is cached
-    cached_operations = session.get_cached_page(path) if settings.persist_session else None
+    # Check if page is cached (always enabled within a session)
+    cached_operations = session.get_cached_page(path)
     
     if cached_operations:
         # Return cached content and add navigation context
@@ -117,7 +120,7 @@ async def stream_initial_load(
                 session=session,
                 event=init_event,
                 is_initial=len(session.ai_messages) == 0,
-                cache_path=path if settings.persist_session else None
+                cache_path=path  # Always cache pages within a session
             ):
                 yield f"data: {json.dumps(operation)}\n\n"
             
@@ -145,7 +148,10 @@ async def stream_interaction(request: Request, interaction: InteractionRequest):
     ai_service = get_ai_service(site)
     settings = get_settings()
     
-    session = session_manager.get_or_create_session(interaction.session_id)
+    # If persist_session is disabled, ignore the session_id and create fresh session
+    session = session_manager.get_or_create_session(
+        interaction.session_id if settings.persist_session else None
+    )
     
     event_data = interaction.event.model_dump()
     event_data["current_url"] = interaction.current_url
@@ -153,7 +159,7 @@ async def stream_interaction(request: Request, interaction: InteractionRequest):
     
     # Determine the path for caching (from href if it's a navigation click)
     cache_path = None
-    if settings.persist_session and event_data.get("href"):
+    if event_data.get("href"):
         # Extract path from href (could be relative or absolute)
         href = event_data.get("href", "")
         if href.startswith("/"):
