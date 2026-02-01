@@ -34,3 +34,6 @@ fly.toml
 
 oatmeal-mauve-familjen
 catalyst-ui-kit
+
+# Large files
+*.pdf
