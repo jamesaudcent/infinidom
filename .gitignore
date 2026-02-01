@@ -29,8 +29,7 @@ build/
 *.swo
 *~
 
-# Fly.io deployment (optional - see notes below)
-fly.toml
+# Fly.io deployment config (needed for GitHub Actions deploy)
 
 oatmeal-mauve-familjen
 catalyst-ui-kit
