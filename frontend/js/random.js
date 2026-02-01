@@ -228,9 +228,26 @@ class Infinidom {
             }
         }, true);
         
-        // Handle browser back/forward
-        window.addEventListener('popstate', () => {
-            this.loadInitialContent();
+        // Handle browser back/forward - use cache if available
+        window.addEventListener('popstate', (event) => {
+            const path = window.location.pathname;
+            
+            // Check frontend cache first for instant back/forward
+            if (this.apiClient.hasPageCached(path)) {
+                this.log(`📦 Back/Forward to ${path} - serving from cache`);
+                const cachedOps = this.apiClient.getCachedPage(path);
+                
+                // Notify backend
+                this.apiClient.notifyNavigation(path);
+                
+                // Replay operations
+                for (const operation of cachedOps) {
+                    this.domPatcher.applyOperation(operation, this.handleEvent.bind(this));
+                }
+            } else {
+                // Not in cache, fetch from server
+                this.loadInitialContent();
+            }
         });
         
         this.log('Event delegation set up');
@@ -251,14 +268,24 @@ class Infinidom {
         const eventData = this.buildEventData(event, eventType, target);
         this.log('Handling event:', eventData);
         
+        // Check for data-path attribute on buttons (explicit navigation target)
+        const dataPath = target.getAttribute('data-path');
+        
         // Determine interaction type for timing labels
-        const isNavigation = target.tagName?.toLowerCase() === 'a' && target.href;
+        const isNavigation = (target.tagName?.toLowerCase() === 'a' && target.href) || dataPath;
         const interactionType = isNavigation ? 'Navigation' : `${eventType} (${target.tagName?.toLowerCase() || 'unknown'})`;
         const targetInfo = eventData.target_text?.substring(0, 20) || eventData.target_id || target.tagName;
         
-        // Extract navigation path from links for URL update
+        // Extract navigation path from links or data-path attribute
         let navigationPath = null;
-        if (isNavigation) {
+        
+        // First check for explicit data-path attribute (buttons with known destinations)
+        if (dataPath) {
+            navigationPath = dataPath.startsWith('/') ? dataPath : '/' + dataPath;
+            this.log('Navigation path from data-path:', navigationPath);
+        }
+        // Then check for href on links
+        else if (target.tagName?.toLowerCase() === 'a' && target.href) {
             try {
                 const url = new URL(target.href, window.location.origin);
                 // Only handle internal navigation (same origin)
@@ -283,11 +310,40 @@ class Infinidom {
     async handleEventStreaming(eventData, interactionType, targetInfo, navigationPath) {
         this.log('Handling event (streaming):', eventData);
         
+        // Check if this is a navigation to a cached page
+        if (navigationPath && this.apiClient.hasPageCached(navigationPath)) {
+            this.log(`📦 Serving ${navigationPath} from local cache`);
+            
+            // Get cached operations
+            const cachedOps = this.apiClient.getCachedPage(navigationPath);
+            
+            // Notify backend to keep conversation in sync
+            this.apiClient.notifyNavigation(navigationPath);
+            
+            // Apply cached operations
+            let opCount = 0;
+            for (const operation of cachedOps) {
+                opCount++;
+                const result = this.domPatcher.applyOperation(operation, this.handleEvent.bind(this));
+                
+                // Handle URL update
+                if (result && result.path && result.path !== window.location.pathname) {
+                    history.pushState({ path: result.path }, '', result.path);
+                    this.log('Updated URL to:', result.path);
+                }
+            }
+            
+            this.logTiming(`${interactionType} (cached)`, 0, `(${targetInfo}, ${opCount} ops from cache)`);
+            return;
+        }
+        
         // Start timing
         this.startTiming('total');
         this.startTiming('firstOp');
         let firstOpReceived = false;
         let opCount = 0;
+        const operations = [];  // Collect for caching
+        let actualPath = navigationPath;  // May be updated from meta operation
         
         // Don't show full loading overlay for streaming - content appears progressively
         this.isLoading = true;
@@ -304,15 +360,16 @@ class Infinidom {
                     }
                     
                     opCount++;
+                    operations.push(operation);
                     
                     const result = this.domPatcher.applyOperation(operation, this.handleEvent.bind(this));
                     
-                    // Handle meta operation for URL update
+                    // Handle meta operation for URL update and path tracking
                     if (result && result.path) {
-                        const newPath = result.path || navigationPath;
-                        if (newPath && newPath !== window.location.pathname) {
-                            history.pushState({ path: newPath }, '', newPath);
-                            this.log('Updated URL to:', newPath);
+                        actualPath = result.path;
+                        if (actualPath && actualPath !== window.location.pathname) {
+                            history.pushState({ path: actualPath }, '', actualPath);
+                            this.log('Updated URL to:', actualPath);
                         }
                     }
                 },
@@ -320,6 +377,13 @@ class Infinidom {
                 () => {
                     const totalTime = this.endTiming('total');
                     this.logTiming(`${interactionType} (streaming) - TOTAL`, totalTime, `(${targetInfo}, ${opCount} ops)`);
+                    
+                    // Cache the result using the actual path from the response
+                    if (actualPath && operations.length > 0) {
+                        this.apiClient.cachePage(actualPath, operations);
+                        this.log(`💾 Cached ${actualPath} (${operations.length} operations)`);
+                    }
+                    
                     this.isLoading = false;
                     resolve();
                 },
@@ -348,6 +412,12 @@ class Infinidom {
         // Add href for links
         if (target.href) {
             data.href = target.href;
+        }
+        
+        // Add path for navigation buttons
+        const dataPath = target.getAttribute('data-path');
+        if (dataPath) {
+            data.path = dataPath.startsWith('/') ? dataPath : '/' + dataPath;
         }
         
         // Add value for inputs

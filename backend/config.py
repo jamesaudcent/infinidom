@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     # - "expansive": AI uses content as foundation, generates rich explorable content
     content_mode: str = "expansive"
     
+    # Session Persistence
+    # If True, session survives browser refresh and returns (via localStorage session_id)
+    # Pages are cached and conversation thread is maintained across visits
+    persist_session: bool = True
+    
     # Application Configuration
     app_name: str = "infinidom Framework"
     debug: bool = True

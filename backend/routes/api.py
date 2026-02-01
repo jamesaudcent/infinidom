@@ -64,17 +64,49 @@ async def stream_initial_load(
     session_id: Optional[str] = Query(None),
     path: str = Query("/")
 ):
-    """Handle initial page load with streaming DOM operations."""
+    """Handle initial page load with streaming DOM operations.
+    
+    If the page has been visited before and is cached, returns cached operations.
+    Otherwise generates new content and caches it.
+    """
     site = get_site_or_404(request)
     session_manager = get_session_manager()
     ai_service = get_ai_service(site)
+    settings = get_settings()
     
     session = session_manager.get_or_create_session(session_id)
     
+    # Check if page is cached
+    cached_operations = session.get_cached_page(path) if settings.persist_session else None
+    
+    if cached_operations:
+        # Return cached content and add navigation context
+        ai_service.add_navigation_context(session, path, from_cache=True)
+        
+        async def generate_cached_stream() -> AsyncGenerator[str, None]:
+            yield f"data: {json.dumps({'type': 'session', 'session_id': session.session_id})}\n\n"
+            yield f"data: {json.dumps({'type': 'cached', 'path': path})}\n\n"
+            
+            for operation in cached_operations:
+                yield f"data: {json.dumps(operation)}\n\n"
+            
+            yield f"data: {json.dumps({'type': 'complete'})}\n\n"
+        
+        return StreamingResponse(
+            generate_cached_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no"
+            }
+        )
+    
+    # Generate new content
     init_event = {
         "event_type": "page_load",
         "path": path,
-        "is_initial": True
+        "is_initial": len(session.ai_messages) == 0
     }
     
     async def generate_stream() -> AsyncGenerator[str, None]:
@@ -84,7 +116,8 @@ async def stream_initial_load(
             async for operation in ai_service.stream_dom_operations(
                 session=session,
                 event=init_event,
-                is_initial=True
+                is_initial=len(session.ai_messages) == 0,
+                cache_path=path if settings.persist_session else None
             ):
                 yield f"data: {json.dumps(operation)}\n\n"
             
@@ -110,6 +143,7 @@ async def stream_interaction(request: Request, interaction: InteractionRequest):
     site = get_site_or_404(request)
     session_manager = get_session_manager()
     ai_service = get_ai_service(site)
+    settings = get_settings()
     
     session = session_manager.get_or_create_session(interaction.session_id)
     
@@ -117,12 +151,23 @@ async def stream_interaction(request: Request, interaction: InteractionRequest):
     event_data["current_url"] = interaction.current_url
     event_data["current_dom"] = interaction.current_dom
     
+    # Determine the path for caching (from href if it's a navigation click)
+    cache_path = None
+    if settings.persist_session and event_data.get("href"):
+        # Extract path from href (could be relative or absolute)
+        href = event_data.get("href", "")
+        if href.startswith("/"):
+            cache_path = href
+        elif not href.startswith("http"):
+            cache_path = "/" + href
+    
     async def generate_stream() -> AsyncGenerator[str, None]:
         try:
             async for operation in ai_service.stream_dom_operations(
                 session=session,
                 event=event_data,
-                is_initial=False
+                is_initial=False,
+                cache_path=cache_path
             ):
                 yield f"data: {json.dumps(operation)}\n\n"
             
@@ -140,6 +185,34 @@ async def stream_interaction(request: Request, interaction: InteractionRequest):
             "X-Accel-Buffering": "no"
         }
     )
+
+
+@router.post("/api/notify/navigation")
+async def notify_navigation(request: Request):
+    """Notify backend of navigation to a cached page.
+    
+    Called by frontend when it serves a page from its local cache.
+    Keeps the AI conversation aware of the user's current location.
+    """
+    site = get_site_or_404(request)
+    session_manager = get_session_manager()
+    ai_service = get_ai_service(site)
+    
+    body = await request.json()
+    session_id = body.get("session_id")
+    path = body.get("path", "/")
+    
+    if not session_id:
+        return JSONResponse(status_code=400, content={"error": "session_id required"})
+    
+    session = session_manager.get_session(session_id)
+    if not session:
+        return JSONResponse(status_code=404, content={"error": "Session not found"})
+    
+    # Add navigation context to conversation
+    ai_service.add_navigation_context(session, path, from_cache=True)
+    
+    return {"status": "ok", "path": path}
 
 
 @router.get("/api/config")

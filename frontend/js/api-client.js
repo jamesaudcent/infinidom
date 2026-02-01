@@ -9,6 +9,7 @@ class InfinidomAPIClient {
     constructor(baseUrl = '') {
         this.baseUrl = baseUrl;
         this.sessionId = this.loadSessionId();
+        this.pageCache = new Map();  // Frontend page cache: path -> {operations, timestamp}
     }
     
     /**
@@ -31,7 +32,54 @@ class InfinidomAPIClient {
      */
     clearSession() {
         this.sessionId = null;
+        this.pageCache.clear();
         localStorage.removeItem('infinidom_session_id');
+    }
+    
+    /**
+     * Check if a page is cached locally
+     */
+    hasPageCached(path) {
+        return this.pageCache.has(path);
+    }
+    
+    /**
+     * Get cached page operations
+     */
+    getCachedPage(path) {
+        const cached = this.pageCache.get(path);
+        return cached ? cached.operations : null;
+    }
+    
+    /**
+     * Cache page operations locally
+     */
+    cachePage(path, operations) {
+        this.pageCache.set(path, {
+            operations: operations,
+            timestamp: Date.now()
+        });
+    }
+    
+    /**
+     * Notify backend of navigation to cached page
+     * Keeps conversation context in sync
+     */
+    async notifyNavigation(path) {
+        if (!this.sessionId) return;
+        
+        try {
+            await fetch(`${this.baseUrl}/api/notify/navigation`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: this.sessionId,
+                    path: path
+                })
+            });
+        } catch (error) {
+            console.warn('Failed to notify navigation:', error);
+        }
     }
     
     /**
@@ -97,8 +145,28 @@ class InfinidomAPIClient {
      * @param {function} onOperation - Callback for each operation received
      * @param {function} onComplete - Callback when stream completes
      * @param {function} onError - Callback for errors
+     * @param {boolean} skipLocalCache - If true, skip local cache and fetch from server
      */
-    streamInit(path = '/', onOperation, onComplete, onError) {
+    streamInit(path = '/', onOperation, onComplete, onError, skipLocalCache = false) {
+        // Check local cache first (performance optimization)
+        if (!skipLocalCache && this.hasPageCached(path)) {
+            const cachedOps = this.getCachedPage(path);
+            console.log(`📦 Serving ${path} from local cache`);
+            
+            // Notify backend so conversation stays in sync
+            this.notifyNavigation(path);
+            
+            // Replay cached operations
+            setTimeout(() => {
+                for (const op of cachedOps) {
+                    if (onOperation) onOperation(op);
+                }
+                if (onComplete) onComplete();
+            }, 0);
+            
+            return () => {}; // No-op close function
+        }
+        
         const params = new URLSearchParams();
         params.set('path', path);
         
@@ -106,7 +174,24 @@ class InfinidomAPIClient {
             params.set('session_id', this.sessionId);
         }
         
-        return this._streamRequest(`/api/stream/init?${params.toString()}`, onOperation, onComplete, onError);
+        // Collect operations for caching
+        const operations = [];
+        
+        const wrappedOnOperation = (op) => {
+            operations.push(op);
+            if (onOperation) onOperation(op);
+        };
+        
+        const wrappedOnComplete = () => {
+            // Cache the page locally
+            if (operations.length > 0) {
+                this.cachePage(path, operations);
+                console.log(`💾 Cached ${path} (${operations.length} operations)`);
+            }
+            if (onComplete) onComplete();
+        };
+        
+        return this._streamRequest(`/api/stream/init?${params.toString()}`, wrappedOnOperation, wrappedOnComplete, onError);
     }
     
     /**
@@ -197,6 +282,9 @@ class InfinidomAPIClient {
                 
                 if (data.type === 'session') {
                     this.saveSessionId(data.session_id);
+                } else if (data.type === 'cached') {
+                    // Backend is serving from its cache
+                    console.log(`📦 Backend serving ${data.path} from cache`);
                 } else if (data.type === 'complete') {
                     eventSource.close();
                     if (onComplete) onComplete();

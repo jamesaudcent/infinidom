@@ -19,6 +19,8 @@ class SessionContext:
     last_accessed: float
     current_dom: Optional[dict] = None
     interaction_history: list = field(default_factory=list)
+    ai_messages: list = field(default_factory=list)  # Conversation thread
+    page_cache: Dict[str, List[dict]] = field(default_factory=dict)  # Cached pages by path
     
     def add_interaction(self, event: dict, response: dict, max_history: int = 20):
         """Add an interaction to the session history."""
@@ -47,6 +49,30 @@ class SessionContext:
     def touch(self):
         """Update last accessed time."""
         self.last_accessed = time.time()
+    
+    def cache_page(self, path: str, operations: List[dict]):
+        """Cache the generated operations for a page."""
+        self.page_cache[path] = operations
+        self.last_accessed = time.time()
+    
+    def get_cached_page(self, path: str) -> Optional[List[dict]]:
+        """Get cached operations for a page, or None if not cached."""
+        return self.page_cache.get(path)
+    
+    def has_visited_path(self, path: str) -> bool:
+        """Check if user has visited this path before."""
+        return path in self.page_cache
+    
+    def add_context_message(self, content: str, role: str = "user"):
+        """Add a context message to the conversation without triggering AI response.
+        
+        Used for navigation events when returning to cached pages.
+        """
+        self.ai_messages.append({
+            "role": role,
+            "content": content,
+            "timestamp": time.time()
+        })
 
 
 class SessionManager:

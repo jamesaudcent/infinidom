@@ -18,7 +18,6 @@ Each line is a minified JSON object. Operations:
 - `meta`: Set page info → {"type":"meta","title":"Title","path":"/"}
 - `finish`: Signal done → {"type":"finish"}
 
-
 ## Core Rules
 1. On initial load, always start by clearing body to remove the branded loading screen
 2. To clear content when interacting or navigating within the site, use the clear and/or remove operations as necessary
@@ -27,5 +26,6 @@ Each line is a minified JSON object. Operations:
 5. Containers need IDs for targeting
 6. Include images using the filename as src
 7. Interactive elements need data-infinidom-interactive="true" to capture user clicks
-8. ALWAYS end with {"type":"finish"} when you have made your changes to the DOM
+8. Navigation buttons should include data-path="/target-path" attribute for caching (e.g., data-path="/features")
+9. ALWAYS end with {"type":"finish"} when you have made your changes to the DOM
 """

@@ -9,7 +9,8 @@ finish signal for reliable completion detection.
 """
 from __future__ import annotations
 import json
-from typing import Optional, AsyncGenerator, Dict, Any
+import time
+from typing import Optional, AsyncGenerator, Dict, Any, List
 from openai import AsyncOpenAI
 
 try:
@@ -72,13 +73,15 @@ Theme: {site.theme}""")
 {chr(10).join(history_summary)}""")
     
     # Current DOM content (what's currently rendered on the page)
-    current_dom = event.get("current_dom")
-    if current_dom:
-        context_parts.append(f"""## Current Page Content
-The following HTML is currently rendered on the page:
-```html
-{current_dom}
-```""")
+    # NOTE: Disabled when using persistent conversations - AI tracks its own output
+    # Uncomment if you need to provide DOM state checkpoints
+    # current_dom = event.get("current_dom")
+    # if current_dom:
+    #     context_parts.append(f"""## Current Page Content
+    # The following HTML is currently rendered on the page:
+    # ```html
+    # {current_dom}
+    # ```""")
     
     # Current event
     event_type = event.get("event_type", "unknown")
@@ -100,6 +103,32 @@ Is Initial Load: {is_initial}""")
         context_parts.append(f"## Site Content\n{site_content}")
     
     return "\n\n".join(context_parts)
+
+
+def build_event_message(event: dict) -> str:
+    """Build a minimal event message for persistent conversations.
+    
+    Used for subsequent requests when the AI already has full context.
+    """
+    event_type = event.get("event_type", "unknown")
+    path = event.get("path", "/")
+    
+    if event_type == "click":
+        target_text = event.get('target_text', 'unknown')
+        target_tag = event.get('target_tag', 'unknown')
+        href = event.get('href', '')
+        
+        parts = [f"User clicked: \"{target_text}\" ({target_tag})"]
+        if href:
+            parts.append(f"Link href: {href}")
+        parts.append(f"Current path: {path}")
+        return "\n".join(parts)
+    
+    elif event_type == "page_load":
+        return f"User navigated to: {path}"
+    
+    else:
+        return f"Event: {event_type} at {path}"
 
 
 # =============================================================================
@@ -129,9 +158,116 @@ class AIService:
         self,
         session: SessionContext,
         event: dict,
-        is_initial: bool = False
+        is_initial: bool = False,
+        cache_path: Optional[str] = None
     ) -> AsyncGenerator[Dict[str, Any], None]:
-        """Stream DOM operations for progressive page building."""
+        """Stream DOM operations for progressive page building.
+        
+        Always uses persistent conversation - the conversation thread is maintained
+        across all interactions for context continuity.
+        
+        Args:
+            session: The user's session context
+            event: The event that triggered this request
+            is_initial: Whether this is the first request in the session
+            cache_path: If provided, cache the generated operations under this path
+        """
+        messages = await self._build_messages(session, event, is_initial)
+        
+        # Extract just role/content for API call (exclude timestamps)
+        api_messages = [{"role": m["role"], "content": m["content"]} for m in messages]
+
+        # Configure streaming request based on provider
+        if self.settings.ai_provider == "cerebras":
+            stream = await self.client.chat.completions.create(
+                model=self.settings.ai_model,
+                messages=api_messages,
+                max_completion_tokens=self.settings.ai_max_tokens,
+                temperature=1,
+                stream=True
+            )
+        else:  # openai
+            stream = await self.client.chat.completions.create(
+                model=self.settings.ai_model,
+                messages=api_messages,
+                max_tokens=self.settings.ai_max_tokens,
+                temperature=0.7,
+                stream=True
+            )
+        
+        buffer = ""
+        full_response = ""  # Collect full response
+        operations_list = []  # Collect operations for caching
+        finished = False
+        
+        async for chunk in stream:
+            if chunk.choices[0].delta.content:
+                content = chunk.choices[0].delta.content
+                buffer += content
+                full_response += content
+                
+                while buffer and not finished:
+                    json_obj, remaining = self._extract_json_object(buffer)
+                    if json_obj is not None:
+                        buffer = remaining
+                        
+                        # Check for finish signal
+                        if json_obj.get("type") == "finish":
+                            finished = True
+                            # Store response and cache
+                            self._store_response(session, messages, full_response)
+                            if cache_path:
+                                session.cache_page(cache_path, operations_list)
+                            return  # Exit immediately on finish
+                        
+                        operations_list.append(json_obj)
+                        yield json_obj
+                    else:
+                        break
+            
+            if finished:
+                break
+        
+        # Try to parse any remaining buffer
+        if buffer.strip() and not finished:
+            try:
+                operation = json.loads(buffer.strip())
+                if operation.get("type") != "finish":
+                    operations_list.append(operation)
+                    yield operation
+            except json.JSONDecodeError:
+                print(f"Warning: Could not parse final buffer: {buffer[:200]}")
+        
+        # Store response and cache
+        self._store_response(session, messages, full_response)
+        if cache_path:
+            session.cache_page(cache_path, operations_list)
+    
+    async def _build_messages(
+        self,
+        session: SessionContext,
+        event: dict,
+        is_initial: bool
+    ) -> List[Dict[str, Any]]:
+        """Build the messages list for the AI request.
+        
+        Always uses persistent conversation - reuses existing history if available,
+        otherwise builds full context for first request.
+        """
+        current_time = time.time()
+        
+        # If we have existing conversation, just add the new event
+        if session.ai_messages:
+            event_content = build_event_message(event)
+            new_message = {
+                "role": "user",
+                "content": event_content,
+                "timestamp": current_time
+            }
+            # Return existing messages plus the new event
+            return session.ai_messages + [new_message]
+        
+        # First request - build full context
         site_content = await self.content_service.get_relevant_content(event)
         site_prompt = await self.content_service.get_site_prompt()
         
@@ -145,64 +281,49 @@ class AIService:
         )
         
         system_prompt = STREAMING_SYSTEM_PROMPT + get_content_mode_instructions()
-
-        # Configure streaming request based on provider
-        if self.settings.ai_provider == "cerebras":
-            stream = await self.client.chat.completions.create(
-                model=self.settings.ai_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": context_message}
-                ],
-                max_completion_tokens=self.settings.ai_max_tokens,
-                temperature=1,
-                stream=True
-            )
-        else:  # openai
-            stream = await self.client.chat.completions.create(
-                model=self.settings.ai_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": context_message}
-                ],
-                max_tokens=self.settings.ai_max_tokens,
-                temperature=0.7,
-                stream=True
-            )
         
-        buffer = ""
-        finished = False
+        messages = [
+            {"role": "system", "content": system_prompt, "timestamp": current_time},
+            {"role": "user", "content": context_message, "timestamp": current_time}
+        ]
         
-        async for chunk in stream:
-            if chunk.choices[0].delta.content:
-                content = chunk.choices[0].delta.content
-                buffer += content
-                
-                while buffer and not finished:
-                    json_obj, remaining = self._extract_json_object(buffer)
-                    if json_obj is not None:
-                        buffer = remaining
-                        
-                        # Check for finish signal
-                        if json_obj.get("type") == "finish":
-                            finished = True
-                            return  # Exit immediately on finish
-                        
-                        yield json_obj
-                    else:
-                        break
-            
-            if finished:
-                break
+        # Store initial messages
+        session.ai_messages = messages.copy()
         
-        # Try to parse any remaining buffer
-        if buffer.strip() and not finished:
-            try:
-                operation = json.loads(buffer.strip())
-                if operation.get("type") != "finish":
-                    yield operation
-            except json.JSONDecodeError:
-                print(f"Warning: Could not parse final buffer: {buffer[:200]}")
+        return messages
+    
+    def _store_response(
+        self,
+        session: SessionContext,
+        messages: List[Dict[str, Any]],
+        response_content: str
+    ):
+        """Store the AI response in the session for conversation continuity."""
+        current_time = time.time()
+        
+        # If we added a new user message, make sure it's in the session
+        if len(messages) > len(session.ai_messages):
+            # The last message is the new user event
+            session.ai_messages.append(messages[-1])
+        
+        # Add the assistant response
+        session.ai_messages.append({
+            "role": "assistant",
+            "content": response_content,
+            "timestamp": current_time
+        })
+    
+    def add_navigation_context(self, session: SessionContext, path: str, from_cache: bool = False):
+        """Add a navigation context message without triggering AI response.
+        
+        Used when user navigates to a cached page - keeps AI aware of current state.
+        """
+        if from_cache:
+            content = f"[System: User navigated back to {path} (served from cache)]"
+        else:
+            content = f"[System: User navigated to {path}]"
+        
+        session.add_context_message(content, role="user")
     
     def _extract_json_object(self, text: str) -> tuple:
         """Extract a complete JSON object from the beginning of text."""
