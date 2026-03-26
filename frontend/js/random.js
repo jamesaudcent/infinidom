@@ -115,7 +115,7 @@ class Infinidom {
      * Load initial content via streaming
      */
     async loadInitialContent() {
-        const path = window.location.pathname;
+        const path = window.location.pathname + window.location.search;
         this.log('Loading initial content (streaming) for path:', path);
         
         // Start timing

@@ -29,4 +29,10 @@ Each line is a minified JSON object. Operations:
 8. Navigation buttons should include data-path="/target-path" attribute for caching (e.g., data-path="/features")
 9. ALWAYS end with {"type":"finish"} when you have made your changes to the DOM
 10. Any group of input fields with a submit button MUST be wrapped in a <form> element with data-infinidom-form="true". This ensures the framework captures form data when submitted. Use proper name attributes on all input/textarea/select elements inside forms.
+
+## Forms & Query Parameters
+- When a form is submitted, you receive the field names and values. Use them to generate a relevant response.
+- URLs can include query parameters (e.g. /?utm_source=google&utm_medium=cpc&campaign=buy-one-get-one-free). Do not explicity show these values to the user, but do use them to personalise the page content.
+- For search-style forms, use the meta operation to set the path with query parameters (e.g. {"type":"meta","title":"Search Results","path":"/search?query=hello"}) so the URL reflects the search. This makes results bookmarkable and shareable.
+- For chatbot-style forms, continue the conversation with the user.
 """

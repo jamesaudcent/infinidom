@@ -205,7 +205,7 @@ class InfinidomAPIClient {
         const payload = {
             session_id: this.sessionId,
             event: event,
-            current_url: window.location.pathname,
+            current_url: window.location.pathname + window.location.search,
             viewport: {
                 width: window.innerWidth,
                 height: window.innerHeight,
