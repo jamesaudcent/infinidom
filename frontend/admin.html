@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>infinidom Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: "Inter", system-ui, sans-serif; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .tab-btn.active { background: #111827; color: white; }
+        .file-item.active { background: #f3f4f6; border-left: 3px solid #111827; }
+        .toast { animation: toast-in 0.25s ease, toast-out 0.25s ease 2.5s forwards; }
+        @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes toast-out { from { opacity: 1; } to { opacity: 0; } }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+    <div class="min-h-screen p-6">
+        <div class="mx-auto max-w-7xl">
+            <div class="mb-6 flex items-center justify-between">
+                <h1 class="text-2xl font-semibold tracking-tight">infinidom <span class="font-normal text-gray-400">admin</span></h1>
+                <div id="toast-container" class="flex flex-col items-end gap-1"></div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-5">
+                <aside class="lg:col-span-1 rounded-xl bg-white p-4 shadow-sm border border-gray-200">
+                    <nav class="space-y-1">
+                        <button class="tab-btn active w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors" data-tab="content">Content</button>
+                        <button class="tab-btn w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors" data-tab="images">Images</button>
+                        <button class="tab-btn w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors" data-tab="prompt">Prompt</button>
+                        <button class="tab-btn w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors" data-tab="site">Site Config</button>
+                        <button class="tab-btn w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors" data-tab="styles">Styles</button>
+                        <button class="tab-btn w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors" data-tab="settings">Settings</button>
+                    </nav>
+                </aside>
+
+                <main class="lg:col-span-4 rounded-xl bg-white p-6 shadow-sm border border-gray-200">
+
+                    <!-- Content -->
+                    <section id="tab-content" class="tab-content active">
+                        <div class="mb-4 flex items-center justify-between">
+                            <h2 class="text-lg font-semibold">Content Files</h2>
+                        </div>
+                        <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                            <div class="lg:col-span-1 flex flex-col">
+                                <div class="mb-3 flex gap-2">
+                                    <input id="new-file-path" class="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-400 focus:outline-none" placeholder="new-file.md">
+                                    <button id="create-file" class="rounded-lg bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800 transition-colors">New</button>
+                                </div>
+                                <div id="content-files" class="flex-1 overflow-auto rounded-lg border border-gray-200 divide-y divide-gray-100 max-h-[460px]"></div>
+                                <div id="content-empty" class="hidden rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-gray-400">No content files yet</div>
+                            </div>
+                            <div class="lg:col-span-2 flex flex-col">
+                                <div class="mb-2 flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <span id="current-file" class="text-sm font-medium text-gray-500">No file selected</span>
+                                        <span id="file-size-badge" class="hidden rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500"></span>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button id="save-content" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors disabled:opacity-40" disabled>Save</button>
+                                        <button id="delete-content" class="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 transition-colors disabled:opacity-40" disabled>Delete</button>
+                                    </div>
+                                </div>
+                                <textarea id="content-editor" class="flex-1 min-h-[420px] w-full rounded-lg border border-gray-300 p-3 font-mono text-sm focus:border-gray-400 focus:outline-none resize-none" placeholder="Select a file to edit" disabled></textarea>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Images -->
+                    <section id="tab-images" class="tab-content">
+                        <div class="mb-4 flex items-center justify-between">
+                            <h2 class="text-lg font-semibold">Images</h2>
+                            <label class="cursor-pointer rounded-lg bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800 transition-colors">
+                                Upload Image
+                                <input id="upload-image" type="file" accept="image/*" class="hidden">
+                            </label>
+                        </div>
+                        <div id="image-grid" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"></div>
+                        <div id="image-empty" class="hidden rounded-lg border border-dashed border-gray-300 p-12 text-center">
+                            <div class="text-gray-400 text-sm">No images uploaded yet</div>
+                            <div class="mt-1 text-gray-300 text-xs">Upload images to make them available to the AI</div>
+                        </div>
+                    </section>
+
+                    <!-- Prompt -->
+                    <section id="tab-prompt" class="tab-content">
+                        <div class="mb-3 flex items-center justify-between">
+                            <h2 class="text-lg font-semibold">Prompt</h2>
+                            <button id="save-prompt" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">Save Prompt</button>
+                        </div>
+                        <p class="mb-3 text-xs text-gray-500">The personality and instructions given to the AI when generating pages for your site.</p>
+                        <textarea id="prompt-editor" class="h-[500px] w-full rounded-lg border border-gray-300 p-3 font-mono text-sm focus:border-gray-400 focus:outline-none resize-none"></textarea>
+                    </section>
+
+                    <!-- Site Config -->
+                    <section id="tab-site" class="tab-content">
+                        <h2 class="mb-4 text-lg font-semibold">Site Config</h2>
+                        <div class="max-w-md space-y-4">
+                            <label class="block text-sm">
+                                <span class="mb-1 block font-medium text-gray-700">Site Name</span>
+                                <input id="site-name" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-gray-400 focus:outline-none">
+                            </label>
+                            <label class="block text-sm">
+                                <span class="mb-1 block font-medium text-gray-700">Theme</span>
+                                <select id="site-theme" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-gray-400 focus:outline-none">
+                                    <option value="light">light</option>
+                                    <option value="dark">dark</option>
+                                </select>
+                            </label>
+                            <div class="text-sm">
+                                <div class="mb-1 font-medium text-gray-700">Domains (read-only)</div>
+                                <ul id="site-domains" class="list-inside list-disc text-gray-500"></ul>
+                            </div>
+                            <button id="save-site" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">Save Site Config</button>
+                        </div>
+                    </section>
+
+                    <!-- Styles -->
+                    <section id="tab-styles" class="tab-content">
+                        <div class="mb-3 flex items-center justify-between">
+                            <h2 class="text-lg font-semibold">Site Styles</h2>
+                            <button id="save-styles" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">Save Styles</button>
+                        </div>
+                        <p class="mb-3 text-xs text-gray-500">Custom CSS loaded on every page. The defaults provide interactive cursor, transitions, and loading overlay styles.</p>
+                        <textarea id="styles-editor" class="h-[500px] w-full rounded-lg border border-gray-300 p-3 font-mono text-sm focus:border-gray-400 focus:outline-none resize-none"></textarea>
+                    </section>
+
+                    <!-- Settings -->
+                    <section id="tab-settings" class="tab-content">
+                        <h2 class="mb-4 text-lg font-semibold">Runtime Settings</h2>
+                        <p class="mb-4 text-xs text-gray-500">Changes take effect immediately but are not persisted across server restarts.</p>
+                        <div class="max-w-2xl grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <label class="block text-sm">
+                                <span class="mb-1 block font-medium text-gray-700">AI Provider</span>
+                                <select id="set-ai-provider" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-gray-400 focus:outline-none">
+                                    <option value="openai">openai</option>
+                                    <option value="cerebras">cerebras</option>
+                                </select>
+                            </label>
+                            <label class="block text-sm">
+                                <span class="mb-1 block font-medium text-gray-700">AI API Key</span>
+                                <input id="set-ai-api-key" type="password" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-gray-400 focus:outline-none" placeholder="Enter new key to change">
+                                <span id="api-key-status" class="mt-1 block text-xs text-gray-400"></span>
+                            </label>
+                            <label class="block text-sm">
+                                <span class="mb-1 block font-medium text-gray-700">AI Model</span>
+                                <input id="set-ai-model" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-gray-400 focus:outline-none">
+                            </label>
+                            <label class="block text-sm">
+                                <span class="mb-1 block font-medium text-gray-700">Max Tokens</span>
+                                <input id="set-ai-max-tokens" type="number" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-gray-400 focus:outline-none">
+                            </label>
+                            <label class="block text-sm">
+                                <span class="mb-1 block font-medium text-gray-700">Content Mode</span>
+                                <select id="set-content-mode" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-gray-400 focus:outline-none">
+                                    <option value="expansive">expansive</option>
+                                    <option value="restrictive">restrictive</option>
+                                </select>
+                            </label>
+                            <label class="mt-4 inline-flex items-center gap-2 text-sm">
+                                <input id="set-persist-session" type="checkbox" class="h-4 w-4 rounded border-gray-300">
+                                <span class="font-medium text-gray-700">Persist Session</span>
+                            </label>
+                        </div>
+                        <div class="mt-6">
+                            <button id="save-settings" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">Save Runtime Settings</button>
+                        </div>
+                    </section>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedFilePath = null;
+        let selectedFileIsText = false;
+
+        function toast(message, isError) {
+            const container = document.getElementById("toast-container");
+            const el = document.createElement("div");
+            el.className = `toast rounded-lg px-3 py-1.5 text-sm shadow-sm ${isError ? "bg-red-50 text-red-700 border border-red-200" : "bg-green-50 text-green-700 border border-green-200"}`;
+            el.textContent = message;
+            container.appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+
+        async function api(path, options) {
+            const res = await fetch(path, options);
+            if (!res.ok) {
+                let detail = "Request failed";
+                try { const b = await res.json(); detail = b.detail || b.error || detail; } catch {}
+                throw new Error(detail);
+            }
+            return res.json();
+        }
+
+        function setupTabs() {
+            document.querySelectorAll(".tab-btn").forEach((btn) => {
+                btn.addEventListener("click", () => {
+                    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    document.querySelectorAll(".tab-content").forEach((s) => s.classList.remove("active"));
+                    document.getElementById(`tab-${btn.dataset.tab}`).classList.add("active");
+                });
+            });
+        }
+
+        // ---- Content ----
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return `${bytes} B`;
+            if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+            return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+        }
+
+        function extensionIcon(ext) {
+            const icons = { ".md": "M", ".txt": "T", ".json": "{}", ".yaml": "Y", ".yml": "Y", ".css": "#", ".html": "<>", ".js": "JS" };
+            return icons[ext] || "F";
+        }
+
+        async function loadContentList() {
+            const data = await api("/admin/api/content");
+            const list = document.getElementById("content-files");
+            const empty = document.getElementById("content-empty");
+            list.innerHTML = "";
+            if (data.files.length === 0) {
+                list.classList.add("hidden");
+                empty.classList.remove("hidden");
+                return;
+            }
+            list.classList.remove("hidden");
+            empty.classList.add("hidden");
+            for (const file of data.files) {
+                const item = document.createElement("div");
+                const isActive = file.path === selectedFilePath;
+                item.className = `file-item flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors ${isActive ? "active" : ""}`;
+                item.innerHTML = `
+                    <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-gray-100 text-xs font-mono font-semibold text-gray-500">${extensionIcon(file.extension)}</span>
+                    <div class="min-w-0 flex-1">
+                        <div class="truncate text-sm font-medium">${file.name}</div>
+                        <div class="text-xs text-gray-400">${file.path !== file.name ? file.path + " · " : ""}${formatSize(file.size)}</div>
+                    </div>
+                `;
+                item.addEventListener("click", () => openContentFile(file.path, file.is_text, file.size));
+                list.appendChild(item);
+            }
+        }
+
+        async function openContentFile(path, isText, size) {
+            selectedFilePath = path;
+            selectedFileIsText = isText;
+            document.getElementById("current-file").textContent = path;
+            const badge = document.getElementById("file-size-badge");
+            badge.textContent = formatSize(size || 0);
+            badge.classList.remove("hidden");
+            const editor = document.getElementById("content-editor");
+            const saveBtn = document.getElementById("save-content");
+            const delBtn = document.getElementById("delete-content");
+            if (!isText) {
+                editor.value = "Binary file — cannot be edited in text mode.";
+                editor.disabled = true;
+                saveBtn.disabled = true;
+                delBtn.disabled = false;
+                return;
+            }
+            const data = await api(`/admin/api/content/${encodeURIComponent(path).replaceAll("%2F", "/")}`);
+            editor.value = data.content || "";
+            editor.disabled = false;
+            saveBtn.disabled = false;
+            delBtn.disabled = false;
+            loadContentList();
+        }
+
+        async function saveContentFile() {
+            if (!selectedFilePath || !selectedFileIsText) return;
+            await api(`/admin/api/content/${encodeURIComponent(selectedFilePath).replaceAll("%2F", "/")}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content: document.getElementById("content-editor").value })
+            });
+            toast("File saved");
+            await loadContentList();
+        }
+
+        async function deleteContentFile() {
+            if (!selectedFilePath) return;
+            if (!confirm(`Delete ${selectedFilePath}?`)) return;
+            await api(`/admin/api/content/${encodeURIComponent(selectedFilePath).replaceAll("%2F", "/")}`, { method: "DELETE" });
+            selectedFilePath = null;
+            selectedFileIsText = false;
+            document.getElementById("current-file").textContent = "No file selected";
+            document.getElementById("file-size-badge").classList.add("hidden");
+            document.getElementById("content-editor").value = "";
+            document.getElementById("content-editor").disabled = true;
+            document.getElementById("save-content").disabled = true;
+            document.getElementById("delete-content").disabled = true;
+            toast("File deleted");
+            await loadContentList();
+        }
+
+        async function createContentFile() {
+            const input = document.getElementById("new-file-path");
+            const path = input.value.trim();
+            if (!path) return;
+            await api(`/admin/api/content/${encodeURIComponent(path).replaceAll("%2F", "/")}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content: "" })
+            });
+            input.value = "";
+            toast("File created");
+            await loadContentList();
+            openContentFile(path, true, 0);
+        }
+
+        // ---- Images ----
+
+        let captionTimers = {};
+
+        async function loadImages() {
+            const data = await api("/admin/api/images");
+            const grid = document.getElementById("image-grid");
+            const empty = document.getElementById("image-empty");
+            grid.innerHTML = "";
+            if (data.images.length === 0) {
+                grid.classList.add("hidden");
+                empty.classList.remove("hidden");
+                return;
+            }
+            grid.classList.remove("hidden");
+            empty.classList.add("hidden");
+            for (const img of data.images) {
+                const card = document.createElement("div");
+                card.className = "group rounded-xl border border-gray-200 overflow-hidden bg-white";
+                card.innerHTML = `
+                    <div class="relative aspect-square bg-gray-50">
+                        <img src="/images/${encodeURIComponent(img.name)}" alt="${img.name}" class="h-full w-full object-contain p-2" onerror="this.parentElement.innerHTML='<div class=\\'flex h-full items-center justify-center text-gray-300 text-xs\\'>Preview unavailable</div>'">
+                        <button data-img="${img.name}" class="del-img absolute right-2 top-2 rounded-lg bg-red-600/90 px-2 py-1 text-xs font-medium text-white opacity-0 group-hover:opacity-100 transition-opacity">Delete</button>
+                    </div>
+                    <div class="border-t border-gray-100 p-3">
+                        <div class="mb-1.5 flex items-center justify-between">
+                            <span class="truncate text-sm font-medium">${img.name}</span>
+                            <span class="ml-2 shrink-0 text-xs text-gray-400">${formatSize(img.size)}</span>
+                        </div>
+                        <input type="text" data-caption-for="${img.name}" value="${(img.caption || "").replace(/"/g, "&quot;")}" placeholder="Add a caption…" class="w-full rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-600 focus:border-gray-400 focus:outline-none placeholder:text-gray-300">
+                    </div>
+                `;
+                grid.appendChild(card);
+            }
+            grid.querySelectorAll(".del-img").forEach(btn => {
+                btn.addEventListener("click", () => deleteImage(btn.dataset.img));
+            });
+            grid.querySelectorAll("[data-caption-for]").forEach(input => {
+                input.addEventListener("input", () => debounceSaveCaption(input.dataset.captionFor, input.value));
+            });
+        }
+
+        function debounceSaveCaption(filename, value) {
+            if (captionTimers[filename]) clearTimeout(captionTimers[filename]);
+            captionTimers[filename] = setTimeout(() => saveCaption(filename, value), 600);
+        }
+
+        async function saveCaption(filename, value) {
+            await api(`/admin/api/images/${encodeURIComponent(filename)}/caption`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ caption: value })
+            });
+        }
+
+        async function uploadImage(inputEl) {
+            if (!inputEl.files || inputEl.files.length === 0) return;
+            const form = new FormData();
+            form.append("file", inputEl.files[0]);
+            await api("/admin/api/images/upload", { method: "POST", body: form });
+            inputEl.value = "";
+            toast("Image uploaded");
+            await loadImages();
+        }
+
+        async function deleteImage(name) {
+            if (!confirm(`Delete ${name}?`)) return;
+            await api(`/admin/api/images/${encodeURIComponent(name)}`, { method: "DELETE" });
+            toast("Image deleted");
+            await loadImages();
+        }
+
+        // ---- Prompt ----
+
+        async function loadPrompt() {
+            const data = await api("/admin/api/prompt");
+            document.getElementById("prompt-editor").value = data.content || "";
+        }
+
+        async function savePrompt() {
+            await api("/admin/api/prompt", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content: document.getElementById("prompt-editor").value })
+            });
+            toast("Prompt saved");
+        }
+
+        // ---- Site Config ----
+
+        async function loadSite() {
+            const data = await api("/admin/api/site");
+            document.getElementById("site-name").value = data.name || "";
+            document.getElementById("site-theme").value = data.theme || "light";
+            const domains = document.getElementById("site-domains");
+            domains.innerHTML = "";
+            for (const d of data.domains || []) {
+                const li = document.createElement("li");
+                li.textContent = d;
+                domains.appendChild(li);
+            }
+        }
+
+        async function saveSite() {
+            await api("/admin/api/site", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: document.getElementById("site-name").value,
+                    theme: document.getElementById("site-theme").value
+                })
+            });
+            toast("Site config saved");
+            await loadSite();
+        }
+
+        // ---- Styles ----
+
+        async function loadStyles() {
+            const data = await api("/admin/api/styles");
+            document.getElementById("styles-editor").value = data.content || "";
+        }
+
+        async function saveStyles() {
+            await api("/admin/api/styles", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content: document.getElementById("styles-editor").value })
+            });
+            toast("Styles saved");
+        }
+
+        // ---- Settings ----
+
+        async function loadSettings() {
+            const data = await api("/admin/api/settings");
+            document.getElementById("set-ai-provider").value = data.ai_provider;
+            document.getElementById("set-ai-model").value = data.ai_model;
+            document.getElementById("set-ai-max-tokens").value = data.ai_max_tokens;
+            document.getElementById("set-content-mode").value = data.content_mode;
+            document.getElementById("set-persist-session").checked = !!data.persist_session;
+            document.getElementById("set-ai-api-key").value = "";
+            document.getElementById("api-key-status").textContent = data.has_api_key ? "API key is set" : "No API key configured";
+        }
+
+        async function saveSettings() {
+            const payload = {
+                ai_provider: document.getElementById("set-ai-provider").value,
+                ai_model: document.getElementById("set-ai-model").value,
+                ai_max_tokens: Number(document.getElementById("set-ai-max-tokens").value || 0),
+                content_mode: document.getElementById("set-content-mode").value,
+                persist_session: document.getElementById("set-persist-session").checked
+            };
+            const keyValue = document.getElementById("set-ai-api-key").value.trim();
+            if (keyValue) payload.ai_api_key = keyValue;
+            await api("/admin/api/settings", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            toast("Settings saved");
+            await loadSettings();
+        }
+
+        // ---- Init ----
+
+        function bindEvents() {
+            document.getElementById("save-content").addEventListener("click", () => saveContentFile().catch(e => toast(e.message, true)));
+            document.getElementById("delete-content").addEventListener("click", () => deleteContentFile().catch(e => toast(e.message, true)));
+            document.getElementById("create-file").addEventListener("click", () => createContentFile().catch(e => toast(e.message, true)));
+            document.getElementById("upload-image").addEventListener("change", e => uploadImage(e.target).catch(err => toast(err.message, true)));
+            document.getElementById("save-prompt").addEventListener("click", () => savePrompt().catch(e => toast(e.message, true)));
+            document.getElementById("save-site").addEventListener("click", () => saveSite().catch(e => toast(e.message, true)));
+            document.getElementById("save-styles").addEventListener("click", () => saveStyles().catch(e => toast(e.message, true)));
+            document.getElementById("save-settings").addEventListener("click", () => saveSettings().catch(e => toast(e.message, true)));
+        }
+
+        async function init() {
+            setupTabs();
+            bindEvents();
+            await Promise.all([loadContentList(), loadImages(), loadPrompt(), loadSite(), loadStyles(), loadSettings()]);
+        }
+
+        init().catch(err => toast(err.message, true));
+    </script>
+</body>
+</html>

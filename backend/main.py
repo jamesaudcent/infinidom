@@ -10,7 +10,9 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
 from backend.config import get_settings
+from backend.defaults import ensure_site_defaults
 from backend.routes import router
+from backend.routes.admin import admin_router
 from backend.middleware import SiteMiddleware
 from backend.services.site_loader import get_site_loader
 
@@ -39,6 +41,7 @@ if frontend_path.exists():
     app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
 
 # Include API routes
+app.include_router(admin_router)
 app.include_router(router)
 
 
@@ -48,6 +51,9 @@ async def startup_event():
     site_loader = get_site_loader()
     sites = site_loader.list_sites()
     
+    for site in sites:
+        ensure_site_defaults(site)
+
     print("∞ infinidom Framework starting...")
     print(f"🤖 AI: {settings.ai_provider} / {settings.ai_model}")
     print(f"📁 Sites configured: {len(sites)}")

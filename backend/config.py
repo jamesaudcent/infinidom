@@ -3,6 +3,7 @@ infinidom Framework Configuration
 """
 from __future__ import annotations
 from typing import List
+import os
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -52,3 +53,21 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Get cached settings instance."""
     return Settings()
+
+
+def update_settings(**kwargs) -> Settings:
+    """Update settings via environment variables and reload config."""
+    valid_keys = set(Settings.model_fields.keys())
+    for key, value in kwargs.items():
+        if key not in valid_keys:
+            continue
+        env_key = key.upper()
+        if isinstance(value, bool):
+            os.environ[env_key] = "true" if value else "false"
+        elif isinstance(value, list):
+            os.environ[env_key] = ",".join(str(v) for v in value)
+        else:
+            os.environ[env_key] = str(value)
+
+    get_settings.cache_clear()
+    return get_settings()

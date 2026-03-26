@@ -45,6 +45,8 @@ class SiteLoader:
     def _load_config(self):
         """Load sites from config.yaml."""
         config_path = self.sites_path / "config.yaml"
+        self._sites = {}
+        self._domain_map = {}
         
         if not config_path.exists():
             return
@@ -69,6 +71,43 @@ class SiteLoader:
             # Map each domain to its site
             for domain in site.domains:
                 self._domain_map[domain.lower()] = site_id
+
+    def reload(self):
+        """Reload site configuration from disk."""
+        self._load_config()
+
+    def update_site_config(
+        self,
+        site_id: str,
+        *,
+        name: Optional[str] = None,
+        theme: Optional[str] = None
+    ) -> Optional[Site]:
+        """Update mutable site config fields and reload state."""
+        config_path = self.sites_path / "config.yaml"
+        if not config_path.exists():
+            return None
+
+        with open(config_path) as f:
+            config = yaml.safe_load(f) or {}
+
+        sites = config.get("sites", {})
+        if site_id not in sites:
+            return None
+
+        site_config = sites[site_id] or {}
+        if name is not None:
+            site_config["name"] = name
+        if theme is not None:
+            site_config["theme"] = theme
+        sites[site_id] = site_config
+        config["sites"] = sites
+
+        with open(config_path, "w") as f:
+            yaml.safe_dump(config, f, sort_keys=False)
+
+        self.reload()
+        return self.get_site(site_id)
     
     def get_site_by_domain(self, domain: str) -> Optional[Site]:
         """Find site matching the given domain."""

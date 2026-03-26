@@ -383,3 +383,8 @@ def get_ai_service(site: Site) -> AIService:
     if site.id not in _ai_services:
         _ai_services[site.id] = AIService(site)
     return _ai_services[site.id]
+
+
+def reset_ai_services():
+    """Clear cached AI service instances."""
+    _ai_services.clear()
