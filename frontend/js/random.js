@@ -204,6 +204,15 @@ class Infinidom {
                         }
                     }
                 }
+
+                // Skip submit buttons inside forms -- let the form submit
+                // event fire instead so form data is captured and emailed.
+                if (target.closest('form') && (
+                    target.tagName === 'BUTTON' ||
+                    (target.tagName === 'INPUT' && target.type === 'submit')
+                )) {
+                    return;
+                }
                 
                 e.preventDefault();
                 e.stopPropagation();
@@ -220,10 +229,10 @@ class Infinidom {
             }
         }, true);
         
-        // Input changes for interactive inputs
+        // Input changes for interactive inputs (skip fields inside forms)
         document.addEventListener('change', (e) => {
             const target = e.target.closest('input, select, textarea');
-            if (target) {
+            if (target && !target.closest('form')) {
                 this.handleEvent(e, 'change', target);
             }
         }, true);
@@ -267,6 +276,13 @@ class Infinidom {
         // Build event data to send to backend
         const eventData = this.buildEventData(event, eventType, target);
         this.log('Handling event:', eventData);
+
+        // Send form submissions to dedicated email endpoint in parallel.
+        if (eventType === 'submit') {
+            this.sendFormSubmissionEmail(eventData).catch((error) => {
+                this.log('Form email capture failed:', error);
+            });
+        }
         
         // Check for data-path attribute on buttons (explicit navigation target)
         const dataPath = target.getAttribute('data-path');
@@ -302,6 +318,25 @@ class Infinidom {
         }
         
         await this.handleEventStreaming(eventData, interactionType, targetInfo, navigationPath);
+    }
+
+    /**
+     * Submit form payload to backend email capture endpoint.
+     */
+    async sendFormSubmissionEmail(eventData) {
+        const formData = eventData?.extra?.form_data;
+        if (!formData || typeof formData !== 'object') {
+            return;
+        }
+
+        await fetch('/api/form-submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                session_id: this.apiClient.sessionId || null,
+                form_data: formData,
+            }),
+        });
     }
     
     /**

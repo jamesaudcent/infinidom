@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     ai_api_key: str = ""
     ai_model: str = "gpt-4o-mini"
     ai_max_tokens: int = 16384
+    resend_api_key: str = ""
+    resend_from_email: str = ""
     
     # Content Generation Mode: "restrictive" or "expansive"
     # - "restrictive": AI strictly adheres to provided content only

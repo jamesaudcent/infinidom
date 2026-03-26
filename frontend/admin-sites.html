@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>infinidom Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: "Inter", system-ui, sans-serif; }
+        .toast { animation: toast-in 0.25s ease, toast-out 0.25s ease 2.5s forwards; }
+        @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes toast-out { from { opacity: 1; } to { opacity: 0; } }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+    <div class="min-h-screen p-6">
+        <div class="mx-auto max-w-4xl">
+            <div class="mb-8 flex items-center justify-between">
+                <h1 class="text-2xl font-semibold tracking-tight">infinidom <span class="font-normal text-gray-400">admin</span></h1>
+                <div id="toast-container" class="flex flex-col items-end gap-1"></div>
+            </div>
+
+            <!-- Create new site -->
+            <div class="mb-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                <h2 class="mb-3 text-sm font-semibold text-gray-700">New Site</h2>
+                <div class="flex gap-3">
+                    <div class="flex-1">
+                        <input id="new-site-id" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none" placeholder="site-id (e.g. my-blog)">
+                    </div>
+                    <div class="flex-1">
+                        <input id="new-site-name" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none" placeholder="Display name (optional)">
+                    </div>
+                    <button id="create-site-btn" class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 transition-colors">Create</button>
+                </div>
+            </div>
+
+            <!-- Sites grid -->
+            <div id="sites-grid" class="grid grid-cols-1 gap-4 md:grid-cols-2"></div>
+            <div id="sites-empty" class="hidden rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center">
+                <div class="text-gray-400 text-sm">No sites configured yet</div>
+                <div class="mt-1 text-gray-300 text-xs">Create your first site above</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toast(message, isError) {
+            const container = document.getElementById("toast-container");
+            const el = document.createElement("div");
+            el.className = `toast rounded-lg px-3 py-1.5 text-sm shadow-sm ${isError ? "bg-red-50 text-red-700 border border-red-200" : "bg-green-50 text-green-700 border border-green-200"}`;
+            el.textContent = message;
+            container.appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+
+        async function api(path, options) {
+            const res = await fetch(path, options);
+            if (!res.ok) {
+                let detail = "Request failed";
+                try { const b = await res.json(); detail = b.detail || b.error || detail; } catch {}
+                throw new Error(detail);
+            }
+            return res.json();
+        }
+
+        async function loadSites() {
+            const data = await api("/admin/api/sites");
+            const grid = document.getElementById("sites-grid");
+            const empty = document.getElementById("sites-empty");
+            grid.innerHTML = "";
+            if (data.sites.length === 0) {
+                grid.classList.add("hidden");
+                empty.classList.remove("hidden");
+                return;
+            }
+            grid.classList.remove("hidden");
+            empty.classList.add("hidden");
+            for (const site of data.sites) {
+                const card = document.createElement("div");
+                card.className = "group rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:border-gray-300 transition-colors";
+                const domainsList = site.domains.length > 0
+                    ? site.domains.map(d => `<span class="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">${d}</span>`).join(" ")
+                    : '<span class="text-xs text-gray-300">no domains</span>';
+                card.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-base font-semibold truncate">${site.name}</h3>
+                                <span class="rounded-full border px-2 py-0.5 text-xs ${site.theme === "dark" ? "border-gray-600 bg-gray-800 text-gray-200" : "border-gray-200 bg-gray-50 text-gray-500"}">${site.theme}</span>
+                            </div>
+                            <div class="mt-1 text-xs text-gray-400 font-mono">${site.id}</div>
+                            <div class="mt-2 flex flex-wrap gap-1">${domainsList}</div>
+                        </div>
+                        <div class="ml-3 flex shrink-0 gap-2">
+                            <a href="/admin/sites/${site.id}" class="rounded-lg bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800 transition-colors">Edit</a>
+                            <button data-delete="${site.id}" class="rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">Delete</button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            }
+            grid.querySelectorAll("[data-delete]").forEach(btn => {
+                btn.addEventListener("click", () => deleteSite(btn.dataset.delete));
+            });
+        }
+
+        async function createSite() {
+            const idInput = document.getElementById("new-site-id");
+            const nameInput = document.getElementById("new-site-name");
+            const siteId = idInput.value.trim();
+            if (!siteId) { toast("Site ID is required", true); return; }
+            const payload = { id: siteId };
+            const name = nameInput.value.trim();
+            if (name) payload.name = name;
+            await api("/admin/api/sites", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            idInput.value = "";
+            nameInput.value = "";
+            toast("Site created");
+            await loadSites();
+        }
+
+        async function deleteSite(siteId) {
+            if (!confirm(`Delete site "${siteId}"? This will remove all its files.`)) return;
+            await api(`/admin/api/sites/${encodeURIComponent(siteId)}`, { method: "DELETE" });
+            toast("Site deleted");
+            await loadSites();
+        }
+
+        document.getElementById("create-site-btn").addEventListener("click", () => createSite().catch(e => toast(e.message, true)));
+        document.getElementById("new-site-id").addEventListener("keydown", e => { if (e.key === "Enter") createSite().catch(err => toast(err.message, true)); });
+
+        loadSites().catch(err => toast(err.message, true));
+    </script>
+</body>
+</html>

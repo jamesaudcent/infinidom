@@ -266,18 +266,25 @@ class InfinidomDOMPatcher {
         const interactiveTags = ['a', 'button', 'input', 'select', 'textarea'];
         
         if (isInteractive) {
-            // Capture click events
-            handlers.click = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                eventHandler(e, 'click');
-            };
+            // Capture click events (skip submit buttons -- handled by form submit)
+            const isSubmitButton = attrs.type === 'submit';
+            if (!isSubmitButton) {
+                handlers.click = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    eventHandler(e, 'click');
+                };
+            }
         }
         
-        // Handle form inputs
+        // Handle form inputs (only standalone inputs, not those inside forms)
         if (attrs.type === 'text' || attrs.type === 'email' || attrs.type === 'password') {
-            handlers.change = (e) => eventHandler(e, 'change');
-            handlers.input = (e) => eventHandler(e, 'input');
+            handlers.change = (e) => {
+                if (!e.target.closest('form')) eventHandler(e, 'change');
+            };
+            handlers.input = (e) => {
+                if (!e.target.closest('form')) eventHandler(e, 'input');
+            };
         }
         
         // Handle form submissions

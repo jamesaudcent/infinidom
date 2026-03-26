@@ -25,10 +25,9 @@ from backend.services.content_service import ContentService
 from backend.services.system_prompt import STREAMING_SYSTEM_PROMPT
 
 
-def get_content_mode_instructions() -> str:
-    """Get content mode instruction based on config."""
-    settings = get_settings()
-    if settings.content_mode == "restrictive":
+def get_content_mode_instructions(site: Site) -> str:
+    """Get content mode instruction based on site config."""
+    if site.content_mode == "restrictive":
         return "\n\nOnly use information from the provided content. Do not invent content."
     return "\n\nUse the provided content as inspiration. Generate rich, explorable content with interactive elements."
 
@@ -97,6 +96,13 @@ Is Initial Load: {is_initial}""")
 - Target tag: {event.get('target_tag', 'N/A')}
 - Href: {event.get('href', 'N/A')}
 - Element Hierarchy: {json.dumps(event.get('element_hierarchy', []))}""")
+
+    if event_type == "submit":
+        extra = event.get("extra") or {}
+        form_data = extra.get("form_data")
+        if form_data and isinstance(form_data, dict):
+            fields = "\n".join(f"- {k}: {v}" for k, v in form_data.items())
+            context_parts.append(f"Form Data:\n{fields}")
     
     # Site content
     if site_content:
@@ -124,6 +130,15 @@ def build_event_message(event: dict) -> str:
         parts.append(f"Current path: {path}")
         return "\n".join(parts)
     
+    elif event_type == "submit":
+        extra = event.get("extra") or {}
+        form_data = extra.get("form_data")
+        parts = [f"User submitted a form at {path}"]
+        if form_data and isinstance(form_data, dict):
+            for field, value in form_data.items():
+                parts.append(f"- {field}: {value}")
+        return "\n".join(parts)
+
     elif event_type == "page_load":
         return f"User navigated to: {path}"
     
@@ -280,7 +295,7 @@ class AIService:
             is_initial=is_initial
         )
         
-        system_prompt = STREAMING_SYSTEM_PROMPT + get_content_mode_instructions()
+        system_prompt = STREAMING_SYSTEM_PROMPT + get_content_mode_instructions(self.site)
         
         messages = [
             {"role": "system", "content": system_prompt, "timestamp": current_time},

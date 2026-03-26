@@ -23,29 +23,48 @@
     <div class="min-h-screen p-6">
         <div class="mx-auto max-w-7xl">
             <div class="mb-6 flex items-center justify-between">
-                <h1 class="text-2xl font-semibold tracking-tight">infinidom <span class="font-normal text-gray-400">admin</span></h1>
+                <div class="flex items-center gap-3">
+                    <a href="/admin/sites" class="text-gray-400 hover:text-gray-600 transition-colors" title="All Sites">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                    </a>
+                    <h1 class="text-2xl font-semibold tracking-tight">
+                        <a href="/admin/sites" class="text-gray-400 hover:text-gray-600 transition-colors">infinidom</a>
+                        <span class="mx-1 text-gray-300">/</span>
+                        <span id="site-title"></span>
+                    </h1>
+                </div>
                 <div id="toast-container" class="flex flex-col items-end gap-1"></div>
             </div>
 
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-5">
                 <aside class="lg:col-span-1 rounded-xl bg-white p-4 shadow-sm border border-gray-200">
                     <nav class="space-y-1">
-                        <button class="tab-btn active w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors" data-tab="content">Content</button>
-                        <button class="tab-btn w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors" data-tab="images">Images</button>
-                        <button class="tab-btn w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors" data-tab="prompt">Prompt</button>
-                        <button class="tab-btn w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors" data-tab="site">Site Config</button>
-                        <button class="tab-btn w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors" data-tab="styles">Styles</button>
+                        <button class="tab-btn active w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors" data-tab="prompt">Prompt</button>
+                        <button class="tab-btn w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors" data-tab="knowledge">Knowledge</button>
+                        <button class="tab-btn w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors" data-tab="media">Media</button>
+                        <button class="tab-btn w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors" data-tab="style">Style</button>
                         <button class="tab-btn w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors" data-tab="settings">Settings</button>
                     </nav>
                 </aside>
 
                 <main class="lg:col-span-4 rounded-xl bg-white p-6 shadow-sm border border-gray-200">
 
-                    <!-- Content -->
-                    <section id="tab-content" class="tab-content active">
-                        <div class="mb-4 flex items-center justify-between">
-                            <h2 class="text-lg font-semibold">Content Files</h2>
+                    <!-- Prompt -->
+                    <section id="tab-prompt" class="tab-content active">
+                        <div class="mb-3 flex items-center justify-between">
+                            <h2 class="text-lg font-semibold">Prompt</h2>
+                            <button id="save-prompt" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">Save Prompt</button>
                         </div>
+                        <p class="mb-3 text-xs text-gray-500">The personality and instructions given to the AI when generating pages for your site.</p>
+                        <textarea id="prompt-editor" class="h-[500px] w-full rounded-lg border border-gray-300 p-3 font-mono text-sm focus:border-gray-400 focus:outline-none resize-none"></textarea>
+                    </section>
+
+                    <!-- Knowledge -->
+                    <section id="tab-knowledge" class="tab-content">
+                        <div class="mb-4 flex items-center justify-between">
+                            <h2 class="text-lg font-semibold">Knowledge</h2>
+                        </div>
+                        <p class="mb-4 text-xs text-gray-500">Content files the AI uses as source material when generating pages.</p>
                         <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
                             <div class="lg:col-span-1 flex flex-col">
                                 <div class="mb-3 flex gap-2">
@@ -71,10 +90,10 @@
                         </div>
                     </section>
 
-                    <!-- Images -->
-                    <section id="tab-images" class="tab-content">
+                    <!-- Media -->
+                    <section id="tab-media" class="tab-content">
                         <div class="mb-4 flex items-center justify-between">
-                            <h2 class="text-lg font-semibold">Images</h2>
+                            <h2 class="text-lg font-semibold">Media</h2>
                             <label class="cursor-pointer rounded-lg bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800 transition-colors">
                                 Upload Image
                                 <input id="upload-image" type="file" accept="image/*" class="hidden">
@@ -87,43 +106,10 @@
                         </div>
                     </section>
 
-                    <!-- Prompt -->
-                    <section id="tab-prompt" class="tab-content">
+                    <!-- Style -->
+                    <section id="tab-style" class="tab-content">
                         <div class="mb-3 flex items-center justify-between">
-                            <h2 class="text-lg font-semibold">Prompt</h2>
-                            <button id="save-prompt" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">Save Prompt</button>
-                        </div>
-                        <p class="mb-3 text-xs text-gray-500">The personality and instructions given to the AI when generating pages for your site.</p>
-                        <textarea id="prompt-editor" class="h-[500px] w-full rounded-lg border border-gray-300 p-3 font-mono text-sm focus:border-gray-400 focus:outline-none resize-none"></textarea>
-                    </section>
-
-                    <!-- Site Config -->
-                    <section id="tab-site" class="tab-content">
-                        <h2 class="mb-4 text-lg font-semibold">Site Config</h2>
-                        <div class="max-w-md space-y-4">
-                            <label class="block text-sm">
-                                <span class="mb-1 block font-medium text-gray-700">Site Name</span>
-                                <input id="site-name" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-gray-400 focus:outline-none">
-                            </label>
-                            <label class="block text-sm">
-                                <span class="mb-1 block font-medium text-gray-700">Theme</span>
-                                <select id="site-theme" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-gray-400 focus:outline-none">
-                                    <option value="light">light</option>
-                                    <option value="dark">dark</option>
-                                </select>
-                            </label>
-                            <div class="text-sm">
-                                <div class="mb-1 font-medium text-gray-700">Domains (read-only)</div>
-                                <ul id="site-domains" class="list-inside list-disc text-gray-500"></ul>
-                            </div>
-                            <button id="save-site" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">Save Site Config</button>
-                        </div>
-                    </section>
-
-                    <!-- Styles -->
-                    <section id="tab-styles" class="tab-content">
-                        <div class="mb-3 flex items-center justify-between">
-                            <h2 class="text-lg font-semibold">Site Styles</h2>
+                            <h2 class="text-lg font-semibold">Style</h2>
                             <button id="save-styles" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">Save Styles</button>
                         </div>
                         <p class="mb-3 text-xs text-gray-500">Custom CSS loaded on every page. The defaults provide interactive cursor, transitions, and loading overlay styles.</p>
@@ -132,43 +118,53 @@
 
                     <!-- Settings -->
                     <section id="tab-settings" class="tab-content">
-                        <h2 class="mb-4 text-lg font-semibold">Runtime Settings</h2>
-                        <p class="mb-4 text-xs text-gray-500">Changes take effect immediately but are not persisted across server restarts.</p>
-                        <div class="max-w-2xl grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <label class="block text-sm">
-                                <span class="mb-1 block font-medium text-gray-700">AI Provider</span>
-                                <select id="set-ai-provider" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-gray-400 focus:outline-none">
-                                    <option value="openai">openai</option>
-                                    <option value="cerebras">cerebras</option>
-                                </select>
-                            </label>
-                            <label class="block text-sm">
-                                <span class="mb-1 block font-medium text-gray-700">AI API Key</span>
-                                <input id="set-ai-api-key" type="password" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-gray-400 focus:outline-none" placeholder="Enter new key to change">
-                                <span id="api-key-status" class="mt-1 block text-xs text-gray-400"></span>
-                            </label>
-                            <label class="block text-sm">
-                                <span class="mb-1 block font-medium text-gray-700">AI Model</span>
-                                <input id="set-ai-model" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-gray-400 focus:outline-none">
-                            </label>
-                            <label class="block text-sm">
-                                <span class="mb-1 block font-medium text-gray-700">Max Tokens</span>
-                                <input id="set-ai-max-tokens" type="number" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-gray-400 focus:outline-none">
-                            </label>
-                            <label class="block text-sm">
-                                <span class="mb-1 block font-medium text-gray-700">Content Mode</span>
-                                <select id="set-content-mode" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-gray-400 focus:outline-none">
-                                    <option value="expansive">expansive</option>
-                                    <option value="restrictive">restrictive</option>
-                                </select>
-                            </label>
-                            <label class="mt-4 inline-flex items-center gap-2 text-sm">
-                                <input id="set-persist-session" type="checkbox" class="h-4 w-4 rounded border-gray-300">
-                                <span class="font-medium text-gray-700">Persist Session</span>
-                            </label>
-                        </div>
-                        <div class="mt-6">
-                            <button id="save-settings" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">Save Runtime Settings</button>
+                        <h2 class="mb-4 text-lg font-semibold">Settings</h2>
+                        <div class="max-w-lg space-y-6">
+                            <div>
+                                <label class="block text-sm">
+                                    <span class="mb-1 block font-medium text-gray-700">Site Name</span>
+                                    <input id="site-name" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none">
+                                </label>
+                            </div>
+                            <div>
+                                <label class="block text-sm">
+                                    <span class="mb-1 block font-medium text-gray-700">Theme</span>
+                                    <select id="site-theme" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none">
+                                        <option value="light">light</option>
+                                        <option value="dark">dark</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div>
+                                <label class="block text-sm">
+                                    <span class="mb-1 block font-medium text-gray-700">Content Mode</span>
+                                    <select id="site-content-mode" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none">
+                                        <option value="expansive">expansive</option>
+                                        <option value="restrictive">restrictive</option>
+                                    </select>
+                                </label>
+                                <p class="mt-1 text-xs text-gray-400">Expansive: AI creates rich pages inspired by your content. Restrictive: AI only uses what you provide.</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm">
+                                    <span class="mb-1 block font-medium text-gray-700">Contact Email</span>
+                                    <input id="site-contact-email" type="email" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none" placeholder="forms@example.com">
+                                </label>
+                                <p class="mt-1 text-xs text-gray-400">All site form submissions will be emailed to this address.</p>
+                            </div>
+                            <div>
+                                <div class="mb-2 flex items-center justify-between">
+                                    <span class="text-sm font-medium text-gray-700">Domains</span>
+                                </div>
+                                <div id="domains-list" class="space-y-2"></div>
+                                <div class="mt-2 flex gap-2">
+                                    <input id="new-domain" class="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-400 focus:outline-none" placeholder="example.com">
+                                    <button id="add-domain-btn" class="shrink-0 rounded-lg bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800 transition-colors">Add</button>
+                                </div>
+                            </div>
+                            <div>
+                                <button id="save-site" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">Save Settings</button>
+                            </div>
                         </div>
                     </section>
                 </main>
@@ -177,8 +173,12 @@
     </div>
 
     <script>
+        const SITE_ID = window.location.pathname.split("/").filter(Boolean).pop();
+        const API = `/admin/api/sites/${encodeURIComponent(SITE_ID)}`;
+
         let selectedFilePath = null;
         let selectedFileIsText = false;
+        let currentDomains = [];
 
         function toast(message, isError) {
             const container = document.getElementById("toast-container");
@@ -210,7 +210,23 @@
             });
         }
 
-        // ---- Content ----
+        // ---- Prompt ----
+
+        async function loadPrompt() {
+            const data = await api(`${API}/prompt`);
+            document.getElementById("prompt-editor").value = data.content || "";
+        }
+
+        async function savePrompt() {
+            await api(`${API}/prompt`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content: document.getElementById("prompt-editor").value })
+            });
+            toast("Prompt saved");
+        }
+
+        // ---- Knowledge (content files) ----
 
         function formatSize(bytes) {
             if (bytes < 1024) return `${bytes} B`;
@@ -224,7 +240,7 @@
         }
 
         async function loadContentList() {
-            const data = await api("/admin/api/content");
+            const data = await api(`${API}/content`);
             const list = document.getElementById("content-files");
             const empty = document.getElementById("content-empty");
             list.innerHTML = "";
@@ -268,7 +284,7 @@
                 delBtn.disabled = false;
                 return;
             }
-            const data = await api(`/admin/api/content/${encodeURIComponent(path).replaceAll("%2F", "/")}`);
+            const data = await api(`${API}/content/${encodeURIComponent(path).replaceAll("%2F", "/")}`);
             editor.value = data.content || "";
             editor.disabled = false;
             saveBtn.disabled = false;
@@ -278,7 +294,7 @@
 
         async function saveContentFile() {
             if (!selectedFilePath || !selectedFileIsText) return;
-            await api(`/admin/api/content/${encodeURIComponent(selectedFilePath).replaceAll("%2F", "/")}`, {
+            await api(`${API}/content/${encodeURIComponent(selectedFilePath).replaceAll("%2F", "/")}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ content: document.getElementById("content-editor").value })
@@ -290,7 +306,7 @@
         async function deleteContentFile() {
             if (!selectedFilePath) return;
             if (!confirm(`Delete ${selectedFilePath}?`)) return;
-            await api(`/admin/api/content/${encodeURIComponent(selectedFilePath).replaceAll("%2F", "/")}`, { method: "DELETE" });
+            await api(`${API}/content/${encodeURIComponent(selectedFilePath).replaceAll("%2F", "/")}`, { method: "DELETE" });
             selectedFilePath = null;
             selectedFileIsText = false;
             document.getElementById("current-file").textContent = "No file selected";
@@ -307,7 +323,7 @@
             const input = document.getElementById("new-file-path");
             const path = input.value.trim();
             if (!path) return;
-            await api(`/admin/api/content/${encodeURIComponent(path).replaceAll("%2F", "/")}`, {
+            await api(`${API}/content/${encodeURIComponent(path).replaceAll("%2F", "/")}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ content: "" })
@@ -318,12 +334,12 @@
             openContentFile(path, true, 0);
         }
 
-        // ---- Images ----
+        // ---- Media (images) ----
 
         let captionTimers = {};
 
         async function loadImages() {
-            const data = await api("/admin/api/images");
+            const data = await api(`${API}/images`);
             const grid = document.getElementById("image-grid");
             const empty = document.getElementById("image-empty");
             grid.innerHTML = "";
@@ -337,9 +353,10 @@
             for (const img of data.images) {
                 const card = document.createElement("div");
                 card.className = "group rounded-xl border border-gray-200 overflow-hidden bg-white";
+                const imgSrc = `${API}/images/${encodeURIComponent(img.name)}/file`;
                 card.innerHTML = `
                     <div class="relative aspect-square bg-gray-50">
-                        <img src="/images/${encodeURIComponent(img.name)}" alt="${img.name}" class="h-full w-full object-contain p-2" onerror="this.parentElement.innerHTML='<div class=\\'flex h-full items-center justify-center text-gray-300 text-xs\\'>Preview unavailable</div>'">
+                        <img src="${imgSrc}" alt="${img.name}" class="h-full w-full object-contain p-2" onerror="this.parentElement.innerHTML='<div class=\\'flex h-full items-center justify-center text-gray-300 text-xs\\'>Preview unavailable</div>'">
                         <button data-img="${img.name}" class="del-img absolute right-2 top-2 rounded-lg bg-red-600/90 px-2 py-1 text-xs font-medium text-white opacity-0 group-hover:opacity-100 transition-opacity">Delete</button>
                     </div>
                     <div class="border-t border-gray-100 p-3">
@@ -366,7 +383,7 @@
         }
 
         async function saveCaption(filename, value) {
-            await api(`/admin/api/images/${encodeURIComponent(filename)}/caption`, {
+            await api(`${API}/images/${encodeURIComponent(filename)}/caption`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ caption: value })
@@ -377,7 +394,7 @@
             if (!inputEl.files || inputEl.files.length === 0) return;
             const form = new FormData();
             form.append("file", inputEl.files[0]);
-            await api("/admin/api/images/upload", { method: "POST", body: form });
+            await api(`${API}/images/upload`, { method: "POST", body: form });
             inputEl.value = "";
             toast("Image uploaded");
             await loadImages();
@@ -385,64 +402,20 @@
 
         async function deleteImage(name) {
             if (!confirm(`Delete ${name}?`)) return;
-            await api(`/admin/api/images/${encodeURIComponent(name)}`, { method: "DELETE" });
+            await api(`${API}/images/${encodeURIComponent(name)}`, { method: "DELETE" });
             toast("Image deleted");
             await loadImages();
         }
 
-        // ---- Prompt ----
-
-        async function loadPrompt() {
-            const data = await api("/admin/api/prompt");
-            document.getElementById("prompt-editor").value = data.content || "";
-        }
-
-        async function savePrompt() {
-            await api("/admin/api/prompt", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ content: document.getElementById("prompt-editor").value })
-            });
-            toast("Prompt saved");
-        }
-
-        // ---- Site Config ----
-
-        async function loadSite() {
-            const data = await api("/admin/api/site");
-            document.getElementById("site-name").value = data.name || "";
-            document.getElementById("site-theme").value = data.theme || "light";
-            const domains = document.getElementById("site-domains");
-            domains.innerHTML = "";
-            for (const d of data.domains || []) {
-                const li = document.createElement("li");
-                li.textContent = d;
-                domains.appendChild(li);
-            }
-        }
-
-        async function saveSite() {
-            await api("/admin/api/site", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: document.getElementById("site-name").value,
-                    theme: document.getElementById("site-theme").value
-                })
-            });
-            toast("Site config saved");
-            await loadSite();
-        }
-
-        // ---- Styles ----
+        // ---- Style ----
 
         async function loadStyles() {
-            const data = await api("/admin/api/styles");
+            const data = await api(`${API}/styles`);
             document.getElementById("styles-editor").value = data.content || "";
         }
 
         async function saveStyles() {
-            await api("/admin/api/styles", {
+            await api(`${API}/styles`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ content: document.getElementById("styles-editor").value })
@@ -450,55 +423,87 @@
             toast("Styles saved");
         }
 
-        // ---- Settings ----
+        // ---- Settings (site config + domains) ----
 
-        async function loadSettings() {
-            const data = await api("/admin/api/settings");
-            document.getElementById("set-ai-provider").value = data.ai_provider;
-            document.getElementById("set-ai-model").value = data.ai_model;
-            document.getElementById("set-ai-max-tokens").value = data.ai_max_tokens;
-            document.getElementById("set-content-mode").value = data.content_mode;
-            document.getElementById("set-persist-session").checked = !!data.persist_session;
-            document.getElementById("set-ai-api-key").value = "";
-            document.getElementById("api-key-status").textContent = data.has_api_key ? "API key is set" : "No API key configured";
+        function renderDomains() {
+            const container = document.getElementById("domains-list");
+            container.innerHTML = "";
+            if (currentDomains.length === 0) {
+                container.innerHTML = '<div class="text-xs text-gray-400">No domains configured</div>';
+                return;
+            }
+            for (let i = 0; i < currentDomains.length; i++) {
+                const row = document.createElement("div");
+                row.className = "flex items-center gap-2";
+                row.innerHTML = `
+                    <span class="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-700 font-mono">${currentDomains[i]}</span>
+                    <button data-domain-idx="${i}" class="remove-domain shrink-0 rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">Remove</button>
+                `;
+                container.appendChild(row);
+            }
+            container.querySelectorAll(".remove-domain").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    currentDomains.splice(Number(btn.dataset.domainIdx), 1);
+                    renderDomains();
+                });
+            });
         }
 
-        async function saveSettings() {
-            const payload = {
-                ai_provider: document.getElementById("set-ai-provider").value,
-                ai_model: document.getElementById("set-ai-model").value,
-                ai_max_tokens: Number(document.getElementById("set-ai-max-tokens").value || 0),
-                content_mode: document.getElementById("set-content-mode").value,
-                persist_session: document.getElementById("set-persist-session").checked
-            };
-            const keyValue = document.getElementById("set-ai-api-key").value.trim();
-            if (keyValue) payload.ai_api_key = keyValue;
-            await api("/admin/api/settings", {
+        function addDomain() {
+            const input = document.getElementById("new-domain");
+            const domain = input.value.trim().toLowerCase();
+            if (!domain) return;
+            if (currentDomains.includes(domain)) { toast("Domain already added", true); return; }
+            currentDomains.push(domain);
+            input.value = "";
+            renderDomains();
+        }
+
+        async function loadSite() {
+            const data = await api(`${API}/site`);
+            document.getElementById("site-title").textContent = data.name || data.id;
+            document.getElementById("site-name").value = data.name || "";
+            document.getElementById("site-theme").value = data.theme || "light";
+            document.getElementById("site-content-mode").value = data.content_mode || "expansive";
+            document.getElementById("site-contact-email").value = data.contact_email || "";
+            currentDomains = [...(data.domains || [])];
+            renderDomains();
+        }
+
+        async function saveSite() {
+            await api(`${API}/site`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({
+                    name: document.getElementById("site-name").value,
+                    theme: document.getElementById("site-theme").value,
+                    content_mode: document.getElementById("site-content-mode").value,
+                    contact_email: document.getElementById("site-contact-email").value.trim() || null,
+                    domains: currentDomains
+                })
             });
             toast("Settings saved");
-            await loadSettings();
+            await loadSite();
         }
 
         // ---- Init ----
 
         function bindEvents() {
+            document.getElementById("save-prompt").addEventListener("click", () => savePrompt().catch(e => toast(e.message, true)));
             document.getElementById("save-content").addEventListener("click", () => saveContentFile().catch(e => toast(e.message, true)));
             document.getElementById("delete-content").addEventListener("click", () => deleteContentFile().catch(e => toast(e.message, true)));
             document.getElementById("create-file").addEventListener("click", () => createContentFile().catch(e => toast(e.message, true)));
             document.getElementById("upload-image").addEventListener("change", e => uploadImage(e.target).catch(err => toast(err.message, true)));
-            document.getElementById("save-prompt").addEventListener("click", () => savePrompt().catch(e => toast(e.message, true)));
-            document.getElementById("save-site").addEventListener("click", () => saveSite().catch(e => toast(e.message, true)));
             document.getElementById("save-styles").addEventListener("click", () => saveStyles().catch(e => toast(e.message, true)));
-            document.getElementById("save-settings").addEventListener("click", () => saveSettings().catch(e => toast(e.message, true)));
+            document.getElementById("save-site").addEventListener("click", () => saveSite().catch(e => toast(e.message, true)));
+            document.getElementById("add-domain-btn").addEventListener("click", () => addDomain());
+            document.getElementById("new-domain").addEventListener("keydown", e => { if (e.key === "Enter") addDomain(); });
         }
 
         async function init() {
             setupTabs();
             bindEvents();
-            await Promise.all([loadContentList(), loadImages(), loadPrompt(), loadSite(), loadStyles(), loadSettings()]);
+            await Promise.all([loadSite(), loadPrompt(), loadContentList(), loadImages(), loadStyles()]);
         }
 
         init().catch(err => toast(err.message, true));

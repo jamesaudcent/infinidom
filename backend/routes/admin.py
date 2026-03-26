@@ -1,38 +1,51 @@
-"""Admin routes for managing site content and runtime settings."""
+"""Admin routes for managing sites, content, and runtime settings."""
+import mimetypes
 from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 
 from backend.config import get_settings, update_settings
-from backend.defaults import _parse_captions, _serialize_captions
+from backend.defaults import _parse_captions, _serialize_captions, ensure_site_defaults
 from backend.services.ai_service import reset_ai_services
-from backend.services.site_loader import get_site_loader
+from backend.services.site_loader import Site, get_site_loader
 
 
 admin_router = APIRouter(prefix="/admin")
 TEXT_EXTENSIONS = {".md", ".txt", ".json", ".yaml", ".yml", ".css", ".html", ".js"}
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico"}
 
+FRONTEND_DIR = Path(__file__).parent.parent.parent / "frontend"
+
+
+# ---------------------------------------------------------------------------
+# Request models
+# ---------------------------------------------------------------------------
+
+class SiteCreateRequest(BaseModel):
+    id: str
+    name: Optional[str] = None
 
 class SiteUpdateRequest(BaseModel):
     name: Optional[str] = None
     theme: Optional[str] = None
-
+    domains: Optional[list[str]] = None
+    content_mode: Optional[str] = None
+    contact_email: Optional[str] = None
 
 class ContentUpdateRequest(BaseModel):
     content: str
 
-
 class PromptUpdateRequest(BaseModel):
     content: str
-
 
 class StylesUpdateRequest(BaseModel):
     content: str
 
+class ImageCaptionUpdate(BaseModel):
+    caption: str
 
 class SettingsUpdateRequest(BaseModel):
     ai_provider: Optional[str] = None
@@ -43,10 +56,14 @@ class SettingsUpdateRequest(BaseModel):
     persist_session: Optional[bool] = None
 
 
-def get_site_or_404(request: Request):
-    site = getattr(request.state, "site", None)
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _get_site(site_id: str) -> Site:
+    site = get_site_loader().get_site(site_id)
     if not site:
-        raise HTTPException(status_code=404, detail="Site not found for this domain")
+        raise HTTPException(status_code=404, detail=f"Site '{site_id}' not found")
     return site
 
 
@@ -58,60 +75,144 @@ def _resolve_content_path(base_path: Path, relative_path: str) -> Path:
     return candidate
 
 
+def _images_dir(site: Site) -> Path:
+    d = site.content_path / "images"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 # ---------------------------------------------------------------------------
-# Admin HTML
+# Admin HTML pages
 # ---------------------------------------------------------------------------
 
 @admin_router.get("")
 @admin_router.get("/")
-async def serve_admin():
-    admin_path = Path(__file__).parent.parent.parent / "frontend" / "admin.html"
-    if not admin_path.exists():
+async def admin_root():
+    return RedirectResponse(url="/admin/sites", status_code=302)
+
+
+@admin_router.get("/sites")
+async def serve_sites_dashboard():
+    path = FRONTEND_DIR / "admin-sites.html"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Admin dashboard not found")
+    return FileResponse(str(path), media_type="text/html")
+
+
+@admin_router.get("/sites/{site_id}")
+async def serve_site_admin(site_id: str):
+    _get_site(site_id)
+    path = FRONTEND_DIR / "admin.html"
+    if not path.exists():
         raise HTTPException(status_code=404, detail="Admin UI not found")
-    return FileResponse(str(admin_path), media_type="text/html")
+    return FileResponse(str(path), media_type="text/html")
 
 
 # ---------------------------------------------------------------------------
-# Site config
+# Global sites API
 # ---------------------------------------------------------------------------
 
-@admin_router.get("/api/site")
-async def get_site_info(request: Request):
-    site = get_site_or_404(request)
+@admin_router.get("/api/sites")
+async def list_all_sites():
+    loader = get_site_loader()
+    return {
+        "sites": [
+            {
+                "id": s.id,
+                "name": s.name,
+                "theme": s.theme,
+                "domains": s.domains,
+                "contact_email": s.contact_email,
+            }
+            for s in loader.list_sites()
+        ]
+    }
+
+
+@admin_router.post("/api/sites")
+async def create_site(body: SiteCreateRequest):
+    loader = get_site_loader()
+    site_id = body.id.strip().lower().replace(" ", "-")
+    if not site_id:
+        raise HTTPException(status_code=400, detail="Site ID is required")
+    if loader.get_site(site_id):
+        raise HTTPException(status_code=409, detail=f"Site '{site_id}' already exists")
+    site = loader.create_site(site_id, name=body.name or site_id)
+    ensure_site_defaults(site)
     return {
         "id": site.id,
         "name": site.name,
         "theme": site.theme,
         "domains": site.domains,
+        "contact_email": site.contact_email,
     }
 
 
-@admin_router.put("/api/site")
-async def update_site_info(request: Request, body: SiteUpdateRequest):
-    site = get_site_or_404(request)
-    if body.name is None and body.theme is None:
-        raise HTTPException(status_code=400, detail="No fields provided")
-
+@admin_router.delete("/api/sites/{site_id}")
+async def delete_site(site_id: str):
     loader = get_site_loader()
-    updated = loader.update_site_config(site.id, name=body.name, theme=body.theme)
+    if not loader.get_site(site_id):
+        raise HTTPException(status_code=404, detail=f"Site '{site_id}' not found")
+    loader.delete_site(site_id, remove_files=True)
+    return {"status": "ok", "id": site_id}
+
+
+# ---------------------------------------------------------------------------
+# Per-site: config
+# ---------------------------------------------------------------------------
+
+@admin_router.get("/api/sites/{site_id}/site")
+async def get_site_info(site_id: str):
+    site = _get_site(site_id)
+    return {
+        "id": site.id,
+        "name": site.name,
+        "theme": site.theme,
+        "domains": site.domains,
+        "content_mode": site.content_mode,
+        "contact_email": site.contact_email,
+    }
+
+
+@admin_router.put("/api/sites/{site_id}/site")
+async def update_site_info(site_id: str, body: SiteUpdateRequest):
+    _get_site(site_id)
+    if (
+        body.name is None
+        and body.theme is None
+        and body.domains is None
+        and body.content_mode is None
+        and body.contact_email is None
+    ):
+        raise HTTPException(status_code=400, detail="No fields provided")
+    loader = get_site_loader()
+    updated = loader.update_site_config(
+        site_id,
+        name=body.name,
+        theme=body.theme,
+        domains=body.domains,
+        content_mode=body.content_mode,
+        contact_email=body.contact_email,
+    )
     if not updated:
         raise HTTPException(status_code=404, detail="Site config not found")
-
     return {
         "id": updated.id,
         "name": updated.name,
         "theme": updated.theme,
         "domains": updated.domains,
+        "content_mode": updated.content_mode,
+        "contact_email": updated.contact_email,
     }
 
 
 # ---------------------------------------------------------------------------
-# Content files (text only, excludes images/ subfolder)
+# Per-site: content files (excludes images/ subfolder)
 # ---------------------------------------------------------------------------
 
-@admin_router.get("/api/content")
-async def list_content_files(request: Request):
-    site = get_site_or_404(request)
+@admin_router.get("/api/sites/{site_id}/content")
+async def list_content_files(site_id: str):
+    site = _get_site(site_id)
     images_dir = (site.content_path / "images").resolve()
     files = []
     if site.content_path.exists():
@@ -132,32 +233,30 @@ async def list_content_files(request: Request):
     return {"files": files}
 
 
-@admin_router.get("/api/content/{filepath:path}")
-async def read_content_file(request: Request, filepath: str):
-    site = get_site_or_404(request)
+@admin_router.get("/api/sites/{site_id}/content/{filepath:path}")
+async def read_content_file(site_id: str, filepath: str):
+    site = _get_site(site_id)
     full_path = _resolve_content_path(site.content_path, filepath)
     if not full_path.exists() or not full_path.is_file():
         raise HTTPException(status_code=404, detail="File not found")
-
     suffix = full_path.suffix.lower()
     if suffix not in TEXT_EXTENSIONS:
         return {"path": filepath, "is_text": False, "content": None}
-
     return {"path": filepath, "is_text": True, "content": full_path.read_text(encoding="utf-8")}
 
 
-@admin_router.put("/api/content/{filepath:path}")
-async def write_content_file(request: Request, filepath: str, body: ContentUpdateRequest):
-    site = get_site_or_404(request)
+@admin_router.put("/api/sites/{site_id}/content/{filepath:path}")
+async def write_content_file(site_id: str, filepath: str, body: ContentUpdateRequest):
+    site = _get_site(site_id)
     full_path = _resolve_content_path(site.content_path, filepath)
     full_path.parent.mkdir(parents=True, exist_ok=True)
     full_path.write_text(body.content, encoding="utf-8")
     return {"status": "ok", "path": filepath}
 
 
-@admin_router.delete("/api/content/{filepath:path}")
-async def delete_content_file(request: Request, filepath: str):
-    site = get_site_or_404(request)
+@admin_router.delete("/api/sites/{site_id}/content/{filepath:path}")
+async def delete_content_file(site_id: str, filepath: str):
+    site = _get_site(site_id)
     full_path = _resolve_content_path(site.content_path, filepath)
     if not full_path.exists() or not full_path.is_file():
         raise HTTPException(status_code=404, detail="File not found")
@@ -166,19 +265,13 @@ async def delete_content_file(request: Request, filepath: str):
 
 
 # ---------------------------------------------------------------------------
-# Images (content/images/)
+# Per-site: images
 # ---------------------------------------------------------------------------
 
-def _images_dir(request: Request) -> Path:
-    site = get_site_or_404(request)
-    d = site.content_path / "images"
-    d.mkdir(parents=True, exist_ok=True)
-    return d
-
-
-@admin_router.get("/api/images")
-async def list_images(request: Request):
-    images_path = _images_dir(request)
+@admin_router.get("/api/sites/{site_id}/images")
+async def list_images(site_id: str):
+    site = _get_site(site_id)
+    images_path = _images_dir(site)
     captions_path = images_path / "captions.md"
     captions: dict[str, str] = {}
     if captions_path.exists():
@@ -195,9 +288,24 @@ async def list_images(request: Request):
     return {"images": images}
 
 
-@admin_router.post("/api/images/upload")
-async def upload_image(request: Request, file: UploadFile = File(...)):
-    images_path = _images_dir(request)
+@admin_router.get("/api/sites/{site_id}/images/{filename}/file")
+async def serve_image_file(site_id: str, filename: str):
+    """Serve the raw image file (used by admin thumbnails)."""
+    site = _get_site(site_id)
+    images_path = _images_dir(site)
+    full_path = (images_path / filename).resolve()
+    if not str(full_path).startswith(str(images_path.resolve())):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    if not full_path.exists() or not full_path.is_file():
+        raise HTTPException(status_code=404, detail="Image not found")
+    media_type, _ = mimetypes.guess_type(str(full_path))
+    return FileResponse(str(full_path), media_type=media_type or "application/octet-stream")
+
+
+@admin_router.post("/api/sites/{site_id}/images/upload")
+async def upload_image(site_id: str, file: UploadFile = File(...)):
+    site = _get_site(site_id)
+    images_path = _images_dir(site)
     filename = Path(file.filename or "").name
     if not filename:
         raise HTTPException(status_code=400, detail="Invalid filename")
@@ -210,9 +318,10 @@ async def upload_image(request: Request, file: UploadFile = File(...)):
     return {"status": "ok", "name": filename, "size": len(data)}
 
 
-@admin_router.delete("/api/images/{filename}")
-async def delete_image(request: Request, filename: str):
-    images_path = _images_dir(request)
+@admin_router.delete("/api/sites/{site_id}/images/{filename}")
+async def delete_image(site_id: str, filename: str):
+    site = _get_site(site_id)
+    images_path = _images_dir(site)
     full_path = (images_path / filename).resolve()
     if not str(full_path).startswith(str(images_path.resolve())):
         raise HTTPException(status_code=400, detail="Invalid filename")
@@ -222,13 +331,10 @@ async def delete_image(request: Request, filename: str):
     return {"status": "ok", "name": filename}
 
 
-class ImageCaptionUpdate(BaseModel):
-    caption: str
-
-
-@admin_router.put("/api/images/{filename}/caption")
-async def set_image_caption(request: Request, filename: str, body: ImageCaptionUpdate):
-    images_path = _images_dir(request)
+@admin_router.put("/api/sites/{site_id}/images/{filename}/caption")
+async def set_image_caption(site_id: str, filename: str, body: ImageCaptionUpdate):
+    site = _get_site(site_id)
+    images_path = _images_dir(site)
     captions_path = images_path / "captions.md"
     captions: dict[str, str] = {}
     if captions_path.exists():
@@ -243,47 +349,47 @@ async def set_image_caption(request: Request, filename: str, body: ImageCaptionU
 
 
 # ---------------------------------------------------------------------------
-# Prompt
+# Per-site: prompt
 # ---------------------------------------------------------------------------
 
-@admin_router.get("/api/prompt")
-async def get_prompt(request: Request):
-    site = get_site_or_404(request)
+@admin_router.get("/api/sites/{site_id}/prompt")
+async def get_prompt(site_id: str):
+    site = _get_site(site_id)
     content = ""
     if site.prompt_path.exists():
         content = site.prompt_path.read_text(encoding="utf-8")
     return {"content": content}
 
 
-@admin_router.put("/api/prompt")
-async def set_prompt(request: Request, body: PromptUpdateRequest):
-    site = get_site_or_404(request)
+@admin_router.put("/api/sites/{site_id}/prompt")
+async def set_prompt(site_id: str, body: PromptUpdateRequest):
+    site = _get_site(site_id)
     site.prompt_path.write_text(body.content, encoding="utf-8")
     return {"status": "ok"}
 
 
 # ---------------------------------------------------------------------------
-# Styles
+# Per-site: styles
 # ---------------------------------------------------------------------------
 
-@admin_router.get("/api/styles")
-async def get_styles(request: Request):
-    site = get_site_or_404(request)
+@admin_router.get("/api/sites/{site_id}/styles")
+async def get_styles(site_id: str):
+    site = _get_site(site_id)
     content = ""
     if site.styles_path.exists():
         content = site.styles_path.read_text(encoding="utf-8")
     return {"content": content}
 
 
-@admin_router.put("/api/styles")
-async def set_styles(request: Request, body: StylesUpdateRequest):
-    site = get_site_or_404(request)
+@admin_router.put("/api/sites/{site_id}/styles")
+async def set_styles(site_id: str, body: StylesUpdateRequest):
+    site = _get_site(site_id)
     site.styles_path.write_text(body.content, encoding="utf-8")
     return {"status": "ok"}
 
 
 # ---------------------------------------------------------------------------
-# Runtime settings
+# Global runtime settings
 # ---------------------------------------------------------------------------
 
 @admin_router.get("/api/settings")

@@ -88,6 +88,21 @@ infinidom is open source under the MIT license.
 *infinidom — where every page is a new beginning.*
 """
 
+DEFAULT_FORMS = """\
+# Forms
+
+## Contact Form
+
+Use this contact form on contact-related pages.
+
+Fields:
+- `name` (text, required)
+- `email` (email, required)
+- `message` (textarea, required)
+
+When generating this form, mark it with `data-infinidom-form="true"` so submissions are captured.
+"""
+
 DEFAULT_STYLES = """\
 /* Site Styles */
 
@@ -184,6 +199,10 @@ def ensure_site_defaults(site: Site):
     content_md = site.content_path / "content.md"
     if not content_md.exists() or content_md.stat().st_size <= 1:
         content_md.write_text(DEFAULT_CONTENT, encoding="utf-8")
+
+    forms_md = site.content_path / "forms.md"
+    if not forms_md.exists() or forms_md.stat().st_size <= 1:
+        forms_md.write_text(DEFAULT_FORMS, encoding="utf-8")
 
     logo_path = images_dir / "infinidom-logo.svg"
     if not logo_path.exists():

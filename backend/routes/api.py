@@ -5,12 +5,14 @@ Handles initial page load and user interactions via streaming.
 """
 from fastapi import APIRouter, Request, Query, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse
-from typing import Optional, AsyncGenerator
+from typing import Optional, AsyncGenerator, Any
 from pathlib import Path
 import json
 import mimetypes
+from pydantic import BaseModel, Field
 
 from backend.models.request import InteractionRequest
+from backend.services.email_service import send_form_email
 from backend.utils.session_manager import get_session_manager
 from backend.services.ai_service import get_ai_service
 from backend.config import get_settings
@@ -19,6 +21,13 @@ router = APIRouter()
 
 # Image file extensions we support
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico'}
+
+
+class FormSubmitRequest(BaseModel):
+    """Request body for form submission emails."""
+
+    session_id: Optional[str] = Field(None, description="Session ID for optional tracing")
+    form_data: dict[str, Any] = Field(default_factory=dict, description="Form field values")
 
 
 def get_site_or_404(request: Request):
@@ -156,6 +165,9 @@ async def stream_interaction(request: Request, interaction: InteractionRequest):
     event_data = interaction.event.model_dump()
     event_data["current_url"] = interaction.current_url
     event_data["current_dom"] = interaction.current_dom
+
+    if event_data.get("event_type") == "submit":
+        print(f"Form submit event_data extra: {event_data.get('extra')}")
     
     # Determine the path for caching (from href if it's a navigation click)
     cache_path = None
@@ -225,13 +237,33 @@ async def notify_navigation(request: Request):
 async def get_config(request: Request):
     """Get client-side configuration."""
     site = get_site_or_404(request)
-    settings = get_settings()
     return {
-        "content_mode": settings.content_mode,
+        "content_mode": site.content_mode,
         "site_name": site.name,
         "site_theme": site.theme,
+        "has_contact_email": bool(site.contact_email),
         "framework": "infinidom"
     }
+
+
+@router.post("/api/form-submit")
+async def submit_form(request: Request, body: FormSubmitRequest):
+    """Capture and email site form submissions."""
+    site = get_site_or_404(request)
+    if not site.contact_email:
+        raise HTTPException(status_code=400, detail="No contact email configured for this site")
+    if not body.form_data:
+        raise HTTPException(status_code=400, detail="No form data provided")
+
+    try:
+        await send_form_email(site_name=site.name, to_email=site.contact_email, form_data=body.form_data)
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        print(f"Form email error: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to send form email")
+
+    return {"status": "ok"}
 
 
 @router.get("/api/health")

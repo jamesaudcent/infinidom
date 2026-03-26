@@ -28,4 +28,5 @@ Each line is a minified JSON object. Operations:
 7. Interactive elements need data-infinidom-interactive="true" to capture user clicks
 8. Navigation buttons should include data-path="/target-path" attribute for caching (e.g., data-path="/features")
 9. ALWAYS end with {"type":"finish"} when you have made your changes to the DOM
+10. Any group of input fields with a submit button MUST be wrapped in a <form> element with data-infinidom-form="true". This ensures the framework captures form data when submitted. Use proper name attributes on all input/textarea/select elements inside forms.
 """

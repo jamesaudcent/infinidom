@@ -17,6 +17,8 @@ class Site:
     name: str
     domains: list[str]
     theme: str = "light"
+    content_mode: str = "expansive"
+    contact_email: Optional[str] = None
     
     @property
     def content_path(self) -> Path:
@@ -64,7 +66,9 @@ class SiteLoader:
                 path=self.sites_path / site_id,
                 name=site_config.get("name", site_id),
                 domains=site_config.get("domains", []),
-                theme=site_config.get("theme", default_theme)
+                theme=site_config.get("theme", default_theme),
+                content_mode=site_config.get("content_mode", "expansive"),
+                contact_email=site_config.get("contact_email")
             )
             self._sites[site_id] = site
             
@@ -81,7 +85,10 @@ class SiteLoader:
         site_id: str,
         *,
         name: Optional[str] = None,
-        theme: Optional[str] = None
+        theme: Optional[str] = None,
+        domains: Optional[list[str]] = None,
+        content_mode: Optional[str] = None,
+        contact_email: Optional[str] = None
     ) -> Optional[Site]:
         """Update mutable site config fields and reload state."""
         config_path = self.sites_path / "config.yaml"
@@ -100,6 +107,12 @@ class SiteLoader:
             site_config["name"] = name
         if theme is not None:
             site_config["theme"] = theme
+        if domains is not None:
+            site_config["domains"] = domains
+        if content_mode is not None:
+            site_config["content_mode"] = content_mode
+        if contact_email is not None:
+            site_config["contact_email"] = contact_email
         sites[site_id] = site_config
         config["sites"] = sites
 
@@ -109,6 +122,66 @@ class SiteLoader:
         self.reload()
         return self.get_site(site_id)
     
+    def create_site(
+        self,
+        site_id: str,
+        *,
+        name: Optional[str] = None,
+        domains: Optional[list[str]] = None,
+        contact_email: Optional[str] = None
+    ) -> Site:
+        """Add a new site to config.yaml and create its directory."""
+        config_path = self.sites_path / "config.yaml"
+        config: dict = {}
+        if config_path.exists():
+            with open(config_path) as f:
+                config = yaml.safe_load(f) or {}
+
+        sites = config.get("sites", {})
+        if site_id in sites:
+            raise ValueError(f"Site '{site_id}' already exists")
+
+        site_record = {"name": name or site_id, "domains": domains or []}
+        if contact_email:
+            site_record["contact_email"] = contact_email
+        sites[site_id] = site_record
+        config["sites"] = sites
+
+        with open(config_path, "w") as f:
+            yaml.safe_dump(config, f, sort_keys=False)
+
+        self.reload()
+        return self._sites[site_id]
+
+    def delete_site(self, site_id: str, *, remove_files: bool = False) -> bool:
+        """Remove a site from config.yaml and optionally delete its directory."""
+        import shutil
+
+        config_path = self.sites_path / "config.yaml"
+        if not config_path.exists():
+            return False
+
+        with open(config_path) as f:
+            config = yaml.safe_load(f) or {}
+
+        sites = config.get("sites", {})
+        if site_id not in sites:
+            return False
+
+        del sites[site_id]
+        config["sites"] = sites
+
+        with open(config_path, "w") as f:
+            yaml.safe_dump(config, f, sort_keys=False)
+
+        if remove_files:
+            site_dir = self.sites_path / site_id
+            if site_dir.exists():
+                shutil.rmtree(site_dir)
+
+        self.reload()
+        return True
+
     def get_site_by_domain(self, domain: str) -> Optional[Site]:
         """Find site matching the given domain."""
         domain = domain.lower().split(":")[0]  # Remove port if present

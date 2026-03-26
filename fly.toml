@@ -12,7 +12,6 @@ primary_region = 'syd'
   AI_PROVIDER = "cerebras"
   AI_MODEL = "gpt-oss-120b"
   AI_MAX_TOKENS = "32678"
-  CONTENT_MODE = "expansive"
 
 [mounts]
   source = "sites_data"
